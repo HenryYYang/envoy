@@ -15,17 +15,17 @@ namespace Extensions {
 namespace NetworkFilters {
 namespace RedisProxy {
 
-void PrintTo(const RespValue& value, std::ostream* os) { *os << value.toString(); }
+void PrintTo(const Common::Redis::RespValue& value, std::ostream* os) { *os << value.toString(); }
 
-void PrintTo(const RespValuePtr& value, std::ostream* os) { *os << value->toString(); }
+void PrintTo(const Common::Redis::RespValuePtr& value, std::ostream* os) { *os << value->toString(); }
 
-bool operator==(const RespValue& lhs, const RespValue& rhs) {
+bool operator==(const Common::Redis::RespValue& lhs, const Common::Redis::RespValue& rhs) {
   if (lhs.type() != rhs.type()) {
     return false;
   }
 
   switch (lhs.type()) {
-  case RespType::Array: {
+  case Common::Redis::RespType::Array: {
     if (lhs.asArray().size() != rhs.asArray().size()) {
       return false;
     }
@@ -37,15 +37,15 @@ bool operator==(const RespValue& lhs, const RespValue& rhs) {
 
     return equal;
   }
-  case RespType::SimpleString:
-  case RespType::BulkString:
-  case RespType::Error: {
+  case Common::Redis::RespType::SimpleString:
+  case Common::Redis::RespType::BulkString:
+  case Common::Redis::RespType::Error: {
     return lhs.asString() == rhs.asString();
   }
-  case RespType::Null: {
+  case Common::Redis::RespType::Null: {
     return true;
   }
-  case RespType::Integer: {
+  case Common::Redis::RespType::Integer: {
     return lhs.asInteger() == rhs.asInteger();
   }
   }
@@ -55,7 +55,7 @@ bool operator==(const RespValue& lhs, const RespValue& rhs) {
 
 MockEncoder::MockEncoder() {
   ON_CALL(*this, encode(_, _))
-      .WillByDefault(Invoke([this](const RespValue& value, Buffer::Instance& out) -> void {
+      .WillByDefault(Invoke([this](const Common::Redis::RespValue& value, Buffer::Instance& out) -> void {
         real_encoder_.encode(value, out);
       }));
 }

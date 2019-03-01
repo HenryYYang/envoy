@@ -4,7 +4,7 @@
 #include <list>
 #include <string>
 
-#include "extensions/filters/network/redis_proxy/codec_impl.h"
+#include "extensions/filters/network/common/redis/codec_impl.h"
 #include "extensions/filters/network/redis_proxy/command_splitter.h"
 #include "extensions/filters/network/redis_proxy/conn_pool.h"
 
@@ -18,25 +18,25 @@ namespace NetworkFilters {
 namespace RedisProxy {
 
 /**
- * Pretty print const RespValue& value
+ * Pretty print const Common::Redis::RespValue& value
  */
 
-void PrintTo(const RespValue& value, std::ostream* os);
-void PrintTo(const RespValuePtr& value, std::ostream* os);
-bool operator==(const RespValue& lhs, const RespValue& rhs);
+void PrintTo(const Common::Redis::RespValue& value, std::ostream* os);
+void PrintTo(const Common::Redis::RespValuePtr& value, std::ostream* os);
+bool operator==(const Common::Redis::RespValue& lhs, const Common::Redis::RespValue& rhs);
 
-class MockEncoder : public Encoder {
+class MockEncoder : public Common::Redis::Encoder {
 public:
   MockEncoder();
   ~MockEncoder();
 
-  MOCK_METHOD2(encode, void(const RespValue& value, Buffer::Instance& out));
+  MOCK_METHOD2(encode, void(const Common::Redis::RespValue& value, Buffer::Instance& out));
 
 private:
-  EncoderImpl real_encoder_;
+  Common::Redis::EncoderImpl real_encoder_;
 };
 
-class MockDecoder : public Decoder {
+class MockDecoder : public Common::Redis::Decoder {
 public:
   MockDecoder();
   ~MockDecoder();
@@ -71,7 +71,7 @@ public:
 
   MOCK_METHOD1(addConnectionCallbacks, void(Network::ConnectionCallbacks& callbacks));
   MOCK_METHOD0(close, void());
-  MOCK_METHOD2(makeRequest, PoolRequest*(const RespValue& request, PoolCallbacks& callbacks));
+  MOCK_METHOD2(makeRequest, PoolRequest*(const Common::Redis::RespValue& request, PoolCallbacks& callbacks));
 
   std::list<Network::ConnectionCallbacks*> callbacks_;
 };
@@ -89,9 +89,9 @@ public:
   MockPoolCallbacks();
   ~MockPoolCallbacks();
 
-  void onResponse(RespValuePtr&& value) override { onResponse_(value); }
+  void onResponse(Common::Redis::RespValuePtr&& value) override { onResponse_(value); }
 
-  MOCK_METHOD1(onResponse_, void(RespValuePtr& value));
+  MOCK_METHOD1(onResponse_, void(Common::Redis::RespValuePtr& value));
   MOCK_METHOD0(onFailure, void());
 };
 
@@ -100,7 +100,7 @@ public:
   MockInstance();
   ~MockInstance();
 
-  MOCK_METHOD3(makeRequest, PoolRequest*(const std::string& hash_key, const RespValue& request,
+  MOCK_METHOD3(makeRequest, PoolRequest*(const std::string& hash_key, const Common::Redis::RespValue& request,
                                          PoolCallbacks& callbacks));
 };
 
@@ -121,9 +121,9 @@ public:
   MockSplitCallbacks();
   ~MockSplitCallbacks();
 
-  void onResponse(RespValuePtr&& value) override { onResponse_(value); }
+  void onResponse(Common::Redis::RespValuePtr&& value) override { onResponse_(value); }
 
-  MOCK_METHOD1(onResponse_, void(RespValuePtr& value));
+  MOCK_METHOD1(onResponse_, void(Common::Redis::RespValuePtr& value));
 };
 
 class MockInstance : public Instance {
@@ -131,11 +131,11 @@ public:
   MockInstance();
   ~MockInstance();
 
-  SplitRequestPtr makeRequest(const RespValue& request, SplitCallbacks& callbacks) override {
+  SplitRequestPtr makeRequest(const Common::Redis::RespValue& request, SplitCallbacks& callbacks) override {
     return SplitRequestPtr{makeRequest_(request, callbacks)};
   }
 
-  MOCK_METHOD2(makeRequest_, SplitRequest*(const RespValue& request, SplitCallbacks& callbacks));
+  MOCK_METHOD2(makeRequest_, SplitRequest*(const Common::Redis::RespValue& request, SplitCallbacks& callbacks));
 };
 
 } // namespace CommandSplitter
