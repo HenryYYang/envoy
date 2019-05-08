@@ -501,6 +501,7 @@ SubsetLoadBalancer::PrioritySubsetImpl::PrioritySubsetImpl(const SubsetLoadBalan
     break;
 
   case LoadBalancerType::OriginalDst:
+  case LoadBalancerType::RedisCluster:
     NOT_REACHED_GCOVR_EXCL_LINE;
   }
 

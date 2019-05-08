@@ -32,6 +32,14 @@ struct SupportedCommands {
   }
 
   /**
+   * @return commands which hash to a single server and are only "safe" for upstream servers
+   * deployed in a Redis cluster
+   */
+  static const std::vector<std::string>& simpleClusterCommands() {
+    CONSTRUCT_ON_FIRST_USE(std::vector<std::string>, "rename", "renamenx");
+  }
+
+  /**
    * @return commands which hash on the fourth argument
    */
   static const std::vector<std::string>& evalCommands() {

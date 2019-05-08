@@ -1100,6 +1100,9 @@ ClusterManagerImpl::ThreadLocalClusterManagerImpl::ClusterEntry::ClusterEntry(
           cluster->lbOriginalDstConfig());
       break;
     }
+    case LoadBalancerType::RedisCluster: {
+      break;
+    }
     }
   }
 }

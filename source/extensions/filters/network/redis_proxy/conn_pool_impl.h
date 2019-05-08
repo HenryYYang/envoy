@@ -48,6 +48,8 @@ public:
   makeRequestToHost(const std::string& host_address, const Common::Redis::RespValue& request,
                     Common::Redis::Client::PoolCallbacks& callbacks) override;
 
+  Upstream::ThreadLocalCluster* threadLocalCluster();
+
 private:
   struct ThreadLocalPool;
 

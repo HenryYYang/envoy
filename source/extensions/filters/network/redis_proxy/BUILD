@@ -45,6 +45,7 @@ envoy_cc_library(
     hdrs = ["command_splitter_impl.h"],
     deps = [
         ":command_splitter_interface",
+        ":conn_pool_lib",
         ":router_interface",
         "//include/envoy/stats:stats_macros",
         "//include/envoy/stats:timespan",

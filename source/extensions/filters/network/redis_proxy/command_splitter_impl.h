@@ -16,7 +16,7 @@
 
 #include "extensions/filters/network/common/redis/client_impl.h"
 #include "extensions/filters/network/redis_proxy/command_splitter.h"
-#include "extensions/filters/network/redis_proxy/conn_pool.h"
+#include "extensions/filters/network/redis_proxy/conn_pool_impl.h"
 #include "extensions/filters/network/redis_proxy/router.h"
 
 namespace Envoy {
@@ -31,6 +31,7 @@ struct ResponseValues {
   const std::string NoUpstreamHost = "no upstream host";
   const std::string UpstreamFailure = "upstream failure";
   const std::string UpstreamProtocolError = "upstream protocol error";
+  const std::string UpstreamCommandNotSupported = "command not supported for selected upstream";
 };
 
 typedef ConstSingleton<ResponseValues> Response;
@@ -132,6 +133,22 @@ public:
 private:
   SimpleRequest(SplitCallbacks& callbacks, CommandStats& command_stats, TimeSource& time_source,
                 bool latency_in_micros)
+      : SingleServerRequest(callbacks, command_stats, time_source, latency_in_micros) {}
+};
+
+/**
+ * SimpleClusterRequest hashes the first argument as the key, but is only supported on clusters
+ * using Redis' clustering support.
+ */
+class SimpleClusterRequest : public SingleServerRequest {
+public:
+  static SplitRequestPtr create(Router& router, Common::Redis::RespValuePtr&& incoming_request,
+                                SplitCallbacks& callbacks, CommandStats& command_stats,
+                                TimeSource& time_source, bool latency_in_micros);
+
+private:
+  SimpleClusterRequest(SplitCallbacks& callbacks, CommandStats& command_stats,
+                       TimeSource& time_source, bool latency_in_micros)
       : SingleServerRequest(callbacks, command_stats, time_source, latency_in_micros) {}
 };
 
@@ -321,6 +338,7 @@ private:
 
   RouterPtr router_;
   CommandHandlerFactory<SimpleRequest> simple_command_handler_;
+  CommandHandlerFactory<SimpleClusterRequest> simple_cluster_command_handler_;
   CommandHandlerFactory<EvalRequest> eval_command_handler_;
   CommandHandlerFactory<MGETRequest> mget_handler_;
   CommandHandlerFactory<MSETRequest> mset_handler_;

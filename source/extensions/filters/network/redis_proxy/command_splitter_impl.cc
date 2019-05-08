@@ -163,6 +163,42 @@ SplitRequestPtr SimpleRequest::create(Router& router,
   return request_ptr;
 }
 
+SplitRequestPtr SimpleClusterRequest::create(Router& router,
+                                             Common::Redis::RespValuePtr&& incoming_request,
+                                             SplitCallbacks& callbacks, CommandStats& command_stats,
+                                             TimeSource& time_source, bool latency_in_micros) {
+  std::unique_ptr<SimpleClusterRequest> request_ptr{
+      new SimpleClusterRequest(callbacks, command_stats, time_source, latency_in_micros)};
+
+  auto conn_pool = router.upstreamPool(incoming_request->asArray()[1].asString());
+  if (conn_pool) {
+    ConnPool::InstanceImpl* instanceimpl_ptr =
+        static_cast<ConnPool::InstanceImpl*>(conn_pool.get());
+    Upstream::ThreadLocalCluster* thread_local_cluster = instanceimpl_ptr->threadLocalCluster();
+    if (thread_local_cluster) {
+      bool is_redis_cluster =
+          (thread_local_cluster->info()->lbType() ==
+           Upstream::LoadBalancerType::Random /*Upstream::LoadBalancerType::RedisCluster*/);
+      if (is_redis_cluster) {
+        request_ptr->conn_pool_ = conn_pool;
+        request_ptr->handle_ = conn_pool->makeRequest(incoming_request->asArray()[1].asString(),
+                                                      *incoming_request, *request_ptr);
+      } else {
+        callbacks.onResponse(Utility::makeError(Response::get().UpstreamCommandNotSupported));
+        return nullptr;
+      }
+    }
+  }
+
+  if (!request_ptr->handle_) {
+    callbacks.onResponse(Utility::makeError(Response::get().NoUpstreamHost));
+    return nullptr;
+  }
+
+  request_ptr->incoming_request_ = std::move(incoming_request);
+  return request_ptr;
+}
+
 SplitRequestPtr EvalRequest::create(Router& router, Common::Redis::RespValuePtr&& incoming_request,
                                     SplitCallbacks& callbacks, CommandStats& command_stats,
                                     TimeSource& time_source, bool latency_in_micros) {
@@ -535,14 +571,16 @@ void SplitKeysSumResultRequest::recreate(Common::Redis::RespValue& request, uint
 InstanceImpl::InstanceImpl(RouterPtr&& router, Stats::Scope& scope, const std::string& stat_prefix,
                            TimeSource& time_source, bool latency_in_micros)
     : router_(std::move(router)), simple_command_handler_(*router_),
-      eval_command_handler_(*router_), mget_handler_(*router_), mset_handler_(*router_),
-      split_keys_sum_result_handler_(*router_),
+      simple_cluster_command_handler_(*router_), eval_command_handler_(*router_),
+      mget_handler_(*router_), mset_handler_(*router_), split_keys_sum_result_handler_(*router_),
       stats_{ALL_COMMAND_SPLITTER_STATS(POOL_COUNTER_PREFIX(scope, stat_prefix + "splitter."))},
       latency_in_micros_(latency_in_micros), time_source_(time_source) {
   for (const std::string& command : Common::Redis::SupportedCommands::simpleCommands()) {
     addHandler(scope, stat_prefix, command, simple_command_handler_);
   }
-
+  for (const std::string& command : Common::Redis::SupportedCommands::simpleClusterCommands()) {
+    addHandler(scope, stat_prefix, command, simple_cluster_command_handler_);
+  }
   for (const std::string& command : Common::Redis::SupportedCommands::evalCommands()) {
     addHandler(scope, stat_prefix, command, eval_command_handler_);
   }
