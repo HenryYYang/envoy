@@ -105,7 +105,8 @@ private:
     ClientImpl& parent_;
     PoolCallbacks& callbacks_;
     bool canceled_{};
-    Stats::TimespanPtr request_timer_;
+    Stats::CompletableTimespanPtr aggregate_request_timer_;
+    Stats::CompletableTimespanPtr command_request_timer_;
   };
 
   ClientImpl(Upstream::HostConstSharedPtr host, Event::Dispatcher& dispatcher, EncoderPtr&& encoder,

@@ -26,7 +26,7 @@ ClientPtr ClientImpl::create(Upstream::HostConstSharedPtr host, Event::Dispatche
                              EncoderPtr&& encoder, DecoderFactory& decoder_factory,
                              const Config& config) {
   auto redis_command_stats = std::make_shared<RedisCommandStats>(
-      host->cluster().statsScope(), "upstream_commands", config.enableCommandStats());
+      host->cluster().statsScope(), "upstream_commands", config.enableCommandStats(), true);
   std::unique_ptr<ClientImpl> client(new ClientImpl(host, dispatcher, std::move(encoder),
                                                     decoder_factory, config, redis_command_stats));
   client->connection_ = host->createConnection(dispatcher, nullptr, nullptr).connection_;
@@ -77,12 +77,8 @@ PoolRequest* ClientImpl::makeRequest(const RespValue& request, PoolCallbacks& ca
   encoder_->encode(request, encoder_buffer_);
 
   if (config_.enableCommandStats()) {
-    // Get command from RespValue
-    if (request.type() == RespType::Array) {
-      redis_command_stats_->counter(request.asArray().front().asString()).inc();
-    } else {
-      redis_command_stats_->counter(request.asString()).inc();
-    }
+    redis_command_stats_->incrementCounter(
+        request); // TODO: This should be incrementTotalRequestCounter(request)
   }
 
   // If buffer is full, flush. If the buffer was empty before the request, start the timer.
@@ -174,7 +170,8 @@ void ClientImpl::onRespValue(RespValuePtr&& value) {
   ASSERT(!pending_requests_.empty());
   PendingRequest& request = pending_requests_.front();
   const bool canceled = request.canceled_;
-  request.request_timer_->complete();
+  request.aggregate_request_timer_->complete();
+  request.command_request_timer_->complete();
   PoolCallbacks& callbacks = request.callbacks_;
 
   // We need to ensure the request is popped before calling the callback, since the callback might
@@ -216,9 +213,10 @@ void ClientImpl::onRespValue(RespValuePtr&& value) {
 
 ClientImpl::PendingRequest::PendingRequest(ClientImpl& parent, PoolCallbacks& callbacks)
     : parent_(parent), callbacks_(callbacks),
-      request_timer_(std::make_unique<Stats::Timespan>(
-          parent_.redis_command_stats_->histogram(parent_.redis_command_stats_->upstream_rq_time_),
-          parent_.time_source_)) {
+      aggregate_request_timer_(parent_.redis_command_stats_->createTimer(
+          parent_.redis_command_stats_->upstream_rq_time_, parent_.time_source_)),
+      command_request_timer_(
+          parent_.redis_command_stats_->createTimer("foo", parent_.time_source_)) {
   parent.host_->cluster().stats().upstream_rq_total_.inc();
   parent.host_->stats().rq_total_.inc();
   parent.host_->cluster().stats().upstream_rq_active_.inc();
