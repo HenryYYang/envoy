@@ -215,7 +215,8 @@ void ClientImpl::onRespValue(RespValuePtr&& value) {
   putOutlierEvent(Upstream::Outlier::Result::EXT_ORIGIN_REQUEST_SUCCESS);
 }
 
-ClientImpl::PendingRequest::PendingRequest(ClientImpl& parent, PoolCallbacks& callbacks, std::string command)
+ClientImpl::PendingRequest::PendingRequest(ClientImpl& parent, PoolCallbacks& callbacks,
+                                           std::string command)
     : parent_(parent), callbacks_(callbacks), command_{command},
       aggregate_request_timer_(parent_.redis_command_stats_->createTimer(
           parent_.redis_command_stats_->upstream_rq_time_, parent_.time_source_)),

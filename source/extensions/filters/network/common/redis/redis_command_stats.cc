@@ -83,23 +83,23 @@ Stats::CompletableTimespanPtr RedisCommandStats::createTimer(Stats::StatName sta
 
 std::string RedisCommandStats::getCommandFromRequest(const RespValue& request) {
   // Get command from RespValue
-  switch(request.type()) {
-    case RespType::Array:
-      return getCommandFromRequest(request.asArray().front());
-    case RespType::Integer:
-      return std::to_string(request.asInteger());
-    case RespType::Null:
-      return "null";
-    default:
-     return request.asString(); 
+  switch (request.type()) {
+  case RespType::Array:
+    return getCommandFromRequest(request.asArray().front());
+  case RespType::Integer:
+    return std::to_string(request.asInteger());
+  case RespType::Null:
+    return "null";
+  default:
+    return request.asString();
   }
 }
 
 void RedisCommandStats::updateStats(const bool success, std::string command) {
   if (success) {
-    counter(command+".success").inc();
+    counter(command + ".success").inc();
   } else {
-    counter(command+".error").inc();
+    counter(command + ".error").inc();
   }
 }
 
