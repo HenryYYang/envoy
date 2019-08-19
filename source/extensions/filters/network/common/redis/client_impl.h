@@ -52,6 +52,7 @@ public:
     return max_upstream_unknown_connections_;
   }
   bool enableCommandStats() const override { return enable_command_stats_; }
+  bool commandStatsLatencyInMicros() const override {return command_stats_latency_in_micros_; }
 
 private:
   const std::chrono::milliseconds op_timeout_;
@@ -61,6 +62,7 @@ private:
   const std::chrono::milliseconds buffer_flush_timeout_;
   const uint32_t max_upstream_unknown_connections_;
   const bool enable_command_stats_;
+  const bool command_stats_latency_in_micros_;
 };
 
 class ClientImpl : public Client, public DecoderCallbacks, public Network::ConnectionCallbacks {
