@@ -18,7 +18,7 @@ namespace Redis {
 
 class RedisCommandStats {
 public:
-  RedisCommandStats(Stats::Scope& scope, const std::string& prefix, bool enableCommandCounts,
+  RedisCommandStats(Stats::Scope& scope, const std::string& prefix, bool enabled,
                     bool latency_in_micros);
 
   Stats::Counter& counter(std::string name);
@@ -30,6 +30,7 @@ public:
   std::string getCommandFromRequest(const RespValue& request);
   void updateStatsTotal(std::string command);
   void updateStats(const bool success, std::string command);
+  bool enabled() { return enabled_; }
 
 private:
   void createStats(std::string name);
@@ -39,6 +40,7 @@ private:
   Stats::StatNameSet stat_name_set_;
   const Stats::StatName prefix_;
   bool latency_in_micros_;
+  bool enabled_;
 
 public:
   const Stats::StatName upstream_rq_time_;

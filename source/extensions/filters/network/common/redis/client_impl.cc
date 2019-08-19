@@ -171,11 +171,12 @@ void ClientImpl::onRespValue(RespValuePtr&& value) {
   PendingRequest& request = pending_requests_.front();
   const bool canceled = request.canceled_;
 
-  bool success = true; // TODO: Choose correct success param
-  // TODO: Wrap this in block if we want to record commands stats
-  redis_command_stats_->updateStats(success, request.command_);
-  request.aggregate_request_timer_->complete();
-  request.command_request_timer_->complete();
+  if (redis_command_stats_->enabled()) {
+    bool success = true;
+    redis_command_stats_->updateStats(success, request.command_);
+    request.aggregate_request_timer_->complete();
+    request.command_request_timer_->complete();
+  }
 
   PoolCallbacks& callbacks = request.callbacks_;
 

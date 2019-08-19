@@ -8,13 +8,13 @@ namespace NetworkFilters {
 namespace Common {
 namespace Redis {
 
-RedisCommandStats::RedisCommandStats(Stats::Scope& scope, const std::string& prefix,
-                                     bool enableCommandCounts, bool latency_in_micros)
+RedisCommandStats::RedisCommandStats(Stats::Scope& scope, const std::string& prefix, bool enabled,
+                                     bool latency_in_micros)
     : scope_(scope), stat_name_set_(scope.symbolTable()), prefix_(stat_name_set_.add(prefix)),
-      latency_in_micros_(latency_in_micros),
+      latency_in_micros_(latency_in_micros), enabled_(enabled),
       upstream_rq_time_(stat_name_set_.add("upstream_rq_time")) {
   // Note: Even if this is disabled, we track the upstream_rq_time.
-  if (enableCommandCounts) {
+  if (enabled_) {
     // Create StatName for each Redis command. Note that we don't include Auth or Ping.
     for (const std::string& command :
          Extensions::NetworkFilters::Common::Redis::SupportedCommands::simpleCommands()) {
