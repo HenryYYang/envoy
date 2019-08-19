@@ -73,12 +73,12 @@ PoolRequest* ClientImpl::makeRequest(const RespValue& request, PoolCallbacks& ca
 
   const bool empty_buffer = encoder_buffer_.length() == 0;
 
-  pending_requests_.emplace_back(*this, callbacks);
+  std::string command = redis_command_stats_->getCommandFromRequest(request);
+  pending_requests_.emplace_back(*this, callbacks, command);
   encoder_->encode(request, encoder_buffer_);
 
   if (config_.enableCommandStats()) {
-    redis_command_stats_->incrementCounter(
-        request); // TODO: This should be incrementTotalRequestCounter(request)
+    redis_command_stats_->counter(command).inc();
   }
 
   // If buffer is full, flush. If the buffer was empty before the request, start the timer.
@@ -170,8 +170,12 @@ void ClientImpl::onRespValue(RespValuePtr&& value) {
   ASSERT(!pending_requests_.empty());
   PendingRequest& request = pending_requests_.front();
   const bool canceled = request.canceled_;
+
+  bool success = true; // TODO: Is this right?
+  redis_command_stats_->updateStats(success, request.command_);
   request.aggregate_request_timer_->complete();
   request.command_request_timer_->complete();
+
   PoolCallbacks& callbacks = request.callbacks_;
 
   // We need to ensure the request is popped before calling the callback, since the callback might
@@ -211,12 +215,12 @@ void ClientImpl::onRespValue(RespValuePtr&& value) {
   putOutlierEvent(Upstream::Outlier::Result::EXT_ORIGIN_REQUEST_SUCCESS);
 }
 
-ClientImpl::PendingRequest::PendingRequest(ClientImpl& parent, PoolCallbacks& callbacks)
-    : parent_(parent), callbacks_(callbacks),
+ClientImpl::PendingRequest::PendingRequest(ClientImpl& parent, PoolCallbacks& callbacks, std::string command)
+    : parent_(parent), callbacks_(callbacks), command_{command},
       aggregate_request_timer_(parent_.redis_command_stats_->createTimer(
           parent_.redis_command_stats_->upstream_rq_time_, parent_.time_source_)),
       command_request_timer_(
-          parent_.redis_command_stats_->createTimer("foo", parent_.time_source_)) {
+          parent_.redis_command_stats_->createTimer(command_, parent_.time_source_)) {
   parent.host_->cluster().stats().upstream_rq_total_.inc();
   parent.host_->stats().rq_total_.inc();
   parent.host_->cluster().stats().upstream_rq_active_.inc();

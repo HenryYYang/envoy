@@ -96,7 +96,7 @@ private:
   };
 
   struct PendingRequest : public PoolRequest {
-    PendingRequest(ClientImpl& parent, PoolCallbacks& callbacks);
+    PendingRequest(ClientImpl& parent, PoolCallbacks& callbacks, std::string command);
     ~PendingRequest() override;
 
     // PoolRequest
@@ -104,6 +104,7 @@ private:
 
     ClientImpl& parent_;
     PoolCallbacks& callbacks_;
+    std::string command_;
     bool canceled_{};
     Stats::CompletableTimespanPtr aggregate_request_timer_;
     Stats::CompletableTimespanPtr command_request_timer_;

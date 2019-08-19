@@ -81,24 +81,27 @@ Stats::CompletableTimespanPtr RedisCommandStats::createTimer(Stats::StatName sta
   }
 }
 
-void RedisCommandStats::incrementCounter(const RespValue& request) {
+std::string RedisCommandStats::getCommandFromRequest(const RespValue& request) {
   // Get command from RespValue
-  if (request.type() == RespType::Array) {
-    counter(request.asArray().front().asString()).inc();
-  } else {
-    counter(request.asString()).inc();
+  switch(request.type()) {
+    case RespType::Array:
+      return getCommandFromRequest(request.asArray().front());
+    case RespType::Integer:
+      return std::to_string(request.asInteger());
+    case RespType::Null:
+      return "null";
+    default:
+     return request.asString(); 
   }
 }
 
-// TODO: Update stats at end of request
-// void RedisCommandStats::updateStats(const bool success) {
-//   if (success) {
-//     command_stats_.success_.inc();
-//   } else {
-//     command_stats_.error_.inc();
-//   }
-//   command_latency_->complete();
-// }
+void RedisCommandStats::updateStats(const bool success, std::string command) {
+  if (success) {
+    counter(command+".success").inc();
+  } else {
+    counter(command+".error").inc();
+  }
+}
 
 } // namespace Redis
 } // namespace Common
