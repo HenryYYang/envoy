@@ -95,6 +95,8 @@ std::string RedisCommandStats::getCommandFromRequest(const RespValue& request) {
   }
 }
 
+void RedisCommandStats::updateStatsTotal(std::string command) { counter(command + ".total").inc(); }
+
 void RedisCommandStats::updateStats(const bool success, std::string command) {
   if (success) {
     counter(command + ".success").inc();

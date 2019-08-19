@@ -28,6 +28,7 @@ public:
   Stats::CompletableTimespanPtr createTimer(Stats::StatName stat_name,
                                             Envoy::TimeSource& time_source);
   std::string getCommandFromRequest(const RespValue& request);
+  void updateStatsTotal(std::string command);
   void updateStats(const bool success, std::string command);
 
 private:

@@ -78,7 +78,7 @@ PoolRequest* ClientImpl::makeRequest(const RespValue& request, PoolCallbacks& ca
   encoder_->encode(request, encoder_buffer_);
 
   if (config_.enableCommandStats()) {
-    redis_command_stats_->counter(command).inc();
+    redis_command_stats_->updateStatsTotal(command);
   }
 
   // If buffer is full, flush. If the buffer was empty before the request, start the timer.
@@ -171,7 +171,8 @@ void ClientImpl::onRespValue(RespValuePtr&& value) {
   PendingRequest& request = pending_requests_.front();
   const bool canceled = request.canceled_;
 
-  bool success = true; // TODO: Is this right?
+  bool success = true; // TODO: Choose correct success param
+  // TODO: Wrap this in block if we want to record commands stats
   redis_command_stats_->updateStats(success, request.command_);
   request.aggregate_request_timer_->complete();
   request.command_request_timer_->complete();
