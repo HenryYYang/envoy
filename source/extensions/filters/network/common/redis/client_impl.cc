@@ -20,13 +20,15 @@ ConfigImpl::ConfigImpl(
                // as the buffer is flushed on each request immediately.
       max_upstream_unknown_connections_(
           PROTOBUF_GET_WRAPPED_OR_DEFAULT(config, max_upstream_unknown_connections, 100)),
-      enable_command_stats_(config.enable_command_stats()), command_stats_latency_in_micros_(config.command_stats_latency_in_micros()) {}
+      enable_command_stats_(config.enable_command_stats()),
+      latency_in_micros_(config.latency_in_micros()) {}
 
 ClientPtr ClientImpl::create(Upstream::HostConstSharedPtr host, Event::Dispatcher& dispatcher,
                              EncoderPtr&& encoder, DecoderFactory& decoder_factory,
                              const Config& config) {
-  auto redis_command_stats = std::make_shared<RedisCommandStats>(
-      host->cluster().statsScope(), "upstream_commands", config.enableCommandStats(), config.commandStatsLatencyInMicros());
+  auto redis_command_stats =
+      std::make_shared<RedisCommandStats>(host->cluster().statsScope(), "upstream_commands",
+                                          config.enableCommandStats(), config.latencyInMicros());
   std::unique_ptr<ClientImpl> client(new ClientImpl(host, dispatcher, std::move(encoder),
                                                     decoder_factory, config, redis_command_stats));
   client->connection_ = host->createConnection(dispatcher, nullptr, nullptr).connection_;
@@ -172,7 +174,7 @@ void ClientImpl::onRespValue(RespValuePtr&& value) {
   const bool canceled = request.canceled_;
 
   if (redis_command_stats_->enabled()) {
-    bool success = true; // TODO: This is wrong!
+    bool success = !canceled && (value->type() != Common::Redis::RespType::Error);
     redis_command_stats_->updateStats(success, request.command_);
     request.aggregate_request_timer_->complete();
     request.command_request_timer_->complete();
