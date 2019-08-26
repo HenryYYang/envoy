@@ -20,14 +20,14 @@ class RedisCommandStats {
 public:
   RedisCommandStats(Stats::Scope& scope, const std::string& prefix, bool enabled);
 
-  Stats::Counter& counter(Stats::StatNameVec stat_names);
-  Stats::Histogram& histogram(Stats::StatNameVec stat_names);
+  Stats::Counter& counter(const Stats::StatNameVec& stat_names);
+  Stats::Histogram& histogram(const Stats::StatNameVec& stat_names);
   Stats::CompletableTimespanPtr createCommandTimer(std::string command,
                                                    Envoy::TimeSource& time_source);
   Stats::CompletableTimespanPtr createAggregateTimer(Envoy::TimeSource& time_source);
   std::string getCommandFromRequest(const RespValue& request);
-  void updateStatsTotal(std::string command);
-  void updateStats(const bool success, std::string command);
+  void updateStatsTotal(const std::string& command);
+  void updateStats(const bool success, const std::string& command);
   bool enabled() { return enabled_; }
 
 private:

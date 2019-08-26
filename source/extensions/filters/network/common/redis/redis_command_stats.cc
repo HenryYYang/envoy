@@ -35,13 +35,13 @@ RedisCommandStats::RedisCommandStats(Stats::Scope& scope, const std::string& pre
   }
 }
 
-Stats::Counter& RedisCommandStats::counter(Stats::StatNameVec stat_names) {
+Stats::Counter& RedisCommandStats::counter(const Stats::StatNameVec& stat_names) {
   const Stats::SymbolTable::StoragePtr storage_ptr = scope_.symbolTable().join(stat_names);
   Stats::StatName full_stat_name = Stats::StatName(storage_ptr.get());
   return scope_.counterFromStatName(full_stat_name);
 }
 
-Stats::Histogram& RedisCommandStats::histogram(Stats::StatNameVec stat_names) {
+Stats::Histogram& RedisCommandStats::histogram(const Stats::StatNameVec& stat_names) {
   const Stats::SymbolTable::StoragePtr storage_ptr = scope_.symbolTable().join(stat_names);
   Stats::StatName full_stat_name = Stats::StatName(storage_ptr.get());
   return scope_.histogramFromStatName(full_stat_name);
@@ -74,16 +74,15 @@ std::string RedisCommandStats::getCommandFromRequest(const RespValue& request) {
   }
 }
 
-void RedisCommandStats::updateStatsTotal(std::string command) {
+void RedisCommandStats::updateStatsTotal(const std::string& command) {
   Stats::StatName stat_name = stat_name_set_.getStatName(command);
   counter({prefix_, stat_name, total_}).inc();
 }
 
-void RedisCommandStats::updateStats(const bool success,
-                                    std::string command) { // TODO: Pass "command" by ref?
+void RedisCommandStats::updateStats(const bool success, const std::string& command) {
   Stats::StatName stat_name = stat_name_set_.getStatName(command);
   if (success) {
-    counter({prefix_, stat_name, success_}).inc(); // TODO: Pass "vector" by ref?
+    counter({prefix_, stat_name, success_}).inc();
   } else {
     counter({prefix_, stat_name, success_}).inc();
   }
