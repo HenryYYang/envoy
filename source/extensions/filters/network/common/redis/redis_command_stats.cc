@@ -10,12 +10,10 @@ namespace Redis {
 
 RedisCommandStats::RedisCommandStats(Stats::Scope& scope, const std::string& prefix, bool enabled)
     : scope_(scope), stat_name_set_(scope.symbolTable()), prefix_(stat_name_set_.add(prefix)),
-      enabled_(enabled), upstream_rq_time_(stat_name_set_.add(upstream_rq_time_metric_)),
-      total_(stat_name_set_.add("total")), success_(stat_name_set_.add("success")),
-      error_(stat_name_set_.add("error")) {
+      enabled_(enabled), upstream_rq_time_(stat_name_set_.add("upstream_rq_time")),
+      latency_(stat_name_set_.add("latency")), total_(stat_name_set_.add("total")),
+      success_(stat_name_set_.add("success")), error_(stat_name_set_.add("error")) {
   // Note: Even if this is disabled, we track the upstream_rq_time.
-  stat_name_set_.rememberBuiltin(upstream_rq_time_metric_);
-
   if (enabled_) {
     // Create StatName for each Redis command. Note that we don't include Auth or Ping.
     for (const std::string& command :
@@ -37,7 +35,6 @@ RedisCommandStats::RedisCommandStats(Stats::Scope& scope, const std::string& pre
 
 void RedisCommandStats::createStats(std::string command) {
   stat_name_set_.rememberBuiltin(command);
-  stat_name_set_.rememberBuiltin(command + ".latency");
 }
 
 Stats::Counter& RedisCommandStats::counter(Stats::StatNameVec stat_names) {
@@ -54,9 +51,9 @@ Stats::Histogram& RedisCommandStats::histogram(Stats::StatNameVec stat_names) {
 
 Stats::CompletableTimespanPtr
 RedisCommandStats::createCommandTimer(std::string command, Envoy::TimeSource& time_source) {
-  Stats::StatName stat_name = stat_name_set_.getStatName(command + latency_suffix_);
+  Stats::StatName stat_name = stat_name_set_.getStatName(command);
   return std::make_unique<Stats::TimespanWithUnit<std::chrono::microseconds>>(
-      histogram({prefix_, stat_name}), time_source);
+      histogram({prefix_, stat_name, latency_}), time_source);
 }
 
 Stats::CompletableTimespanPtr

@@ -37,15 +37,13 @@ private:
   Stats::StatNameSet stat_name_set_;
   const Stats::StatName prefix_;
   bool enabled_;
-  const std::string latency_suffix_ = ".latency";
-  const std::string null_metric_ = "null";
-  const std::string unknown_metric_ = "unknown";
-  const std::string upstream_rq_time_metric_ = "upstream_rq_time";
-
   const Stats::StatName upstream_rq_time_;
+  const Stats::StatName latency_;
   const Stats::StatName total_;
   const Stats::StatName success_;
   const Stats::StatName error_;
+  const std::string null_metric_ = "null";
+  const std::string unknown_metric_ = "unknown";
 };
 using RedisCommandStatsPtr = std::shared_ptr<RedisCommandStats>;
 
