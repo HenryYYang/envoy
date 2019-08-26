@@ -10,7 +10,9 @@ namespace Redis {
 
 RedisCommandStats::RedisCommandStats(Stats::Scope& scope, const std::string& prefix, bool enabled)
     : scope_(scope), stat_name_set_(scope.symbolTable()), prefix_(stat_name_set_.add(prefix)),
-      enabled_(enabled), upstream_rq_time_(stat_name_set_.add(upstream_rq_time_metric_)) {
+      enabled_(enabled), upstream_rq_time_(stat_name_set_.add(upstream_rq_time_metric_)),
+      total_(stat_name_set_.add("total")), success_(stat_name_set_.add("success")),
+      error_(stat_name_set_.add("error")) {
   // Note: Even if this is disabled, we track the upstream_rq_time.
   stat_name_set_.rememberBuiltin(upstream_rq_time_metric_);
 
@@ -40,11 +42,10 @@ void RedisCommandStats::createStats(std::string name) {
   stat_name_set_.rememberBuiltin(name + ".latency");
 }
 
-Stats::Counter& RedisCommandStats::counter(std::string name, std::string suffix) {
+Stats::Counter& RedisCommandStats::counter(std::string name, Stats::StatName suffix) {
   Stats::StatName stat_name = stat_name_set_.getStatName(name);
-  Stats::StatName suffix_name = stat_name_set_.getStatName(suffix);
   const Stats::SymbolTable::StoragePtr storage_ptr =
-      scope_.symbolTable().join({prefix_, stat_name, suffix_name});
+      scope_.symbolTable().join({prefix_, stat_name, suffix});
   Stats::StatName full_stat_name = Stats::StatName(storage_ptr.get());
   return scope_.counterFromStatName(full_stat_name);
 }
@@ -83,15 +84,13 @@ std::string RedisCommandStats::getCommandFromRequest(const RespValue& request) {
   }
 }
 
-void RedisCommandStats::updateStatsTotal(std::string command) {
-  counter(command, total_suffix_).inc();
-}
+void RedisCommandStats::updateStatsTotal(std::string command) { counter(command, total_).inc(); }
 
 void RedisCommandStats::updateStats(const bool success, std::string command) {
   if (success) {
-    counter(command, success_suffix_).inc();
+    counter(command, success_).inc();
   } else {
-    counter(command, error_suffix_).inc();
+    counter(command, error_).inc();
   }
 }
 
