@@ -52,9 +52,8 @@ ClientPtr ClientImpl::create(Upstream::HostConstSharedPtr host, Event::Dispatche
                              const Config& config) {
   auto redis_command_stats = std::make_shared<RedisCommandStats>(
       host->cluster().statsScope(), "upstream_commands", config.enableCommandStats());
-  auto client = std::make_unique<ClientImpl>(host, dispatcher, std::move(encoder),
-                                                    decoder_factory, config,
-                                                    std::move(redis_command_stats));
+  auto client = std::make_unique<ClientImpl>(host, dispatcher, std::move(encoder), decoder_factory,
+                                             config, std::move(redis_command_stats));
   client->connection_ = host->createConnection(dispatcher, nullptr, nullptr).connection_;
   client->connection_->addConnectionCallbacks(*client);
   client->connection_->addReadFilter(Network::ReadFilterSharedPtr{new UpstreamReadFilter(*client)});
@@ -105,7 +104,7 @@ PoolRequest* ClientImpl::makeRequest(const RespValue& request, PoolCallbacks& ca
   encoder_->encode(request, encoder_buffer_);
 
   if (config_.enableCommandStats()) {
-    redis_command_stats_->updateStatsTotal(to_lower_command);
+    // redis_command_stats_->updateStatsTotal(to_lower_command);
   }
 
   // If buffer is full, flush. If the buffer was empty before the request, start the timer.
@@ -199,8 +198,8 @@ void ClientImpl::onRespValue(RespValuePtr&& value) {
   const bool canceled = request.canceled_;
 
   if (redis_command_stats_->enabled()) {
-    bool success = !canceled && (value->type() != Common::Redis::RespType::Error);
-    redis_command_stats_->updateStats(success, request.command_);
+    // bool success = !canceled && (value->type() != Common::Redis::RespType::Error);
+    // redis_command_stats_->updateStats(success, request.command_);
     request.command_request_timer_->complete();
   }
   request.aggregate_request_timer_->complete();
