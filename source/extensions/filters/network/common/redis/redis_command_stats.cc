@@ -46,9 +46,8 @@ Stats::Counter& RedisCommandStats::counter(Stats::StatNameVec stat_names) {
   return scope_.counterFromStatName(full_stat_name);
 }
 
-Stats::Histogram& RedisCommandStats::histogram(Stats::StatName stat_name) {
-  const Stats::SymbolTable::StoragePtr storage_ptr =
-      scope_.symbolTable().join({prefix_, stat_name});
+Stats::Histogram& RedisCommandStats::histogram(Stats::StatNameVec stat_names) {
+  const Stats::SymbolTable::StoragePtr storage_ptr = scope_.symbolTable().join(stat_names);
   Stats::StatName full_stat_name = Stats::StatName(storage_ptr.get());
   return scope_.histogramFromStatName(full_stat_name);
 }
@@ -56,14 +55,14 @@ Stats::Histogram& RedisCommandStats::histogram(Stats::StatName stat_name) {
 Stats::CompletableTimespanPtr
 RedisCommandStats::createCommandTimer(std::string command, Envoy::TimeSource& time_source) {
   Stats::StatName stat_name = stat_name_set_.getStatName(command + latency_suffix_);
-  return std::make_unique<Stats::TimespanWithUnit<std::chrono::microseconds>>(histogram(stat_name),
-                                                                              time_source);
+  return std::make_unique<Stats::TimespanWithUnit<std::chrono::microseconds>>(
+      histogram({prefix_, stat_name}), time_source);
 }
 
 Stats::CompletableTimespanPtr
 RedisCommandStats::createAggregateTimer(Envoy::TimeSource& time_source) {
   return std::make_unique<Stats::TimespanWithUnit<std::chrono::microseconds>>(
-      histogram(upstream_rq_time_), time_source);
+      histogram({prefix_, upstream_rq_time_}), time_source);
 }
 
 std::string RedisCommandStats::getCommandFromRequest(const RespValue& request) {

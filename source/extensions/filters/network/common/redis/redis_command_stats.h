@@ -21,7 +21,7 @@ public:
   RedisCommandStats(Stats::Scope& scope, const std::string& prefix, bool enabled);
 
   Stats::Counter& counter(Stats::StatNameVec stat_names);
-  Stats::Histogram& histogram(Stats::StatName stat_name);
+  Stats::Histogram& histogram(Stats::StatNameVec stat_names);
   Stats::CompletableTimespanPtr createCommandTimer(std::string command,
                                                    Envoy::TimeSource& time_source);
   Stats::CompletableTimespanPtr createAggregateTimer(Envoy::TimeSource& time_source);
