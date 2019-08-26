@@ -31,8 +31,6 @@ public:
   bool enabled() { return enabled_; }
 
 private:
-  void createStats(std::string command);
-
   Stats::Scope& scope_;
   Stats::StatNameSet stat_name_set_;
   const Stats::StatName prefix_;

@@ -18,23 +18,21 @@ RedisCommandStats::RedisCommandStats(Stats::Scope& scope, const std::string& pre
     // Create StatName for each Redis command. Note that we don't include Auth or Ping.
     for (const std::string& command :
          Extensions::NetworkFilters::Common::Redis::SupportedCommands::simpleCommands()) {
-      createStats(command);
+      stat_name_set_.rememberBuiltin(command);
     }
     for (const std::string& command :
          Extensions::NetworkFilters::Common::Redis::SupportedCommands::evalCommands()) {
-      createStats(command);
+      stat_name_set_.rememberBuiltin(command);
     }
     for (const std::string& command : Extensions::NetworkFilters::Common::Redis::SupportedCommands::
              hashMultipleSumResultCommands()) {
-      createStats(command);
+      stat_name_set_.rememberBuiltin(command);
     }
-    createStats(Extensions::NetworkFilters::Common::Redis::SupportedCommands::mget());
-    createStats(Extensions::NetworkFilters::Common::Redis::SupportedCommands::mset());
+    stat_name_set_.rememberBuiltin(
+        Extensions::NetworkFilters::Common::Redis::SupportedCommands::mget());
+    stat_name_set_.rememberBuiltin(
+        Extensions::NetworkFilters::Common::Redis::SupportedCommands::mset());
   }
-}
-
-void RedisCommandStats::createStats(std::string command) {
-  stat_name_set_.rememberBuiltin(command);
 }
 
 Stats::Counter& RedisCommandStats::counter(Stats::StatNameVec stat_names) {
@@ -81,10 +79,11 @@ void RedisCommandStats::updateStatsTotal(std::string command) {
   counter({prefix_, stat_name, total_}).inc();
 }
 
-void RedisCommandStats::updateStats(const bool success, std::string command) {
+void RedisCommandStats::updateStats(const bool success,
+                                    std::string command) { // TODO: Pass "command" by ref?
   Stats::StatName stat_name = stat_name_set_.getStatName(command);
   if (success) {
-    counter({prefix_, stat_name, success_}).inc(); // TODO: Pass by ref?
+    counter({prefix_, stat_name, success_}).inc(); // TODO: Pass "vector" by ref?
   } else {
     counter({prefix_, stat_name, success_}).inc();
   }
