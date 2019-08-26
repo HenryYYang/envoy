@@ -35,15 +35,13 @@ RedisCommandStats::RedisCommandStats(Stats::Scope& scope, const std::string& pre
   }
 }
 
-void RedisCommandStats::createStats(std::string name) {
-  stat_name_set_.rememberBuiltin(name + ".total");
-  stat_name_set_.rememberBuiltin(name + ".success");
-  stat_name_set_.rememberBuiltin(name + ".error");
-  stat_name_set_.rememberBuiltin(name + ".latency");
+void RedisCommandStats::createStats(std::string command) {
+  stat_name_set_.rememberBuiltin(command);
+  stat_name_set_.rememberBuiltin(command + ".latency");
 }
 
-Stats::Counter& RedisCommandStats::counter(std::string name, Stats::StatName suffix) {
-  Stats::StatName stat_name = stat_name_set_.getStatName(name);
+Stats::Counter& RedisCommandStats::counter(std::string command, Stats::StatName suffix) {
+  Stats::StatName stat_name = stat_name_set_.getStatName(command);
   const Stats::SymbolTable::StoragePtr storage_ptr =
       scope_.symbolTable().join({prefix_, stat_name, suffix});
   Stats::StatName full_stat_name = Stats::StatName(storage_ptr.get());
@@ -58,8 +56,8 @@ Stats::Histogram& RedisCommandStats::histogram(Stats::StatName stat_name) {
 }
 
 Stats::CompletableTimespanPtr
-RedisCommandStats::createCommandTimer(std::string name, Envoy::TimeSource& time_source) {
-  Stats::StatName stat_name = stat_name_set_.getStatName(name + latency_suffix_);
+RedisCommandStats::createCommandTimer(std::string command, Envoy::TimeSource& time_source) {
+  Stats::StatName stat_name = stat_name_set_.getStatName(command + latency_suffix_);
   return std::make_unique<Stats::TimespanWithUnit<std::chrono::microseconds>>(histogram(stat_name),
                                                                               time_source);
 }

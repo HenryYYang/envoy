@@ -20,9 +20,9 @@ class RedisCommandStats {
 public:
   RedisCommandStats(Stats::Scope& scope, const std::string& prefix, bool enabled);
 
-  Stats::Counter& counter(std::string name, Stats::StatName suffix);
+  Stats::Counter& counter(std::string command, Stats::StatName suffix);
   Stats::Histogram& histogram(Stats::StatName stat_name);
-  Stats::CompletableTimespanPtr createCommandTimer(std::string name,
+  Stats::CompletableTimespanPtr createCommandTimer(std::string command,
                                                    Envoy::TimeSource& time_source);
   Stats::CompletableTimespanPtr createAggregateTimer(Envoy::TimeSource& time_source);
   std::string getCommandFromRequest(const RespValue& request);
@@ -31,7 +31,7 @@ public:
   bool enabled() { return enabled_; }
 
 private:
-  void createStats(std::string name);
+  void createStats(std::string command);
 
   Stats::Scope& scope_;
   Stats::StatNameSet stat_name_set_;
