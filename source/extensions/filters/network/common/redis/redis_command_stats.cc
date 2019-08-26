@@ -40,10 +40,8 @@ void RedisCommandStats::createStats(std::string command) {
   stat_name_set_.rememberBuiltin(command + ".latency");
 }
 
-Stats::Counter& RedisCommandStats::counter(std::string command, Stats::StatName suffix) {
-  Stats::StatName stat_name = stat_name_set_.getStatName(command);
-  const Stats::SymbolTable::StoragePtr storage_ptr =
-      scope_.symbolTable().join({prefix_, stat_name, suffix});
+Stats::Counter& RedisCommandStats::counter(Stats::StatNameVec stat_names) {
+  const Stats::SymbolTable::StoragePtr storage_ptr = scope_.symbolTable().join(stat_names);
   Stats::StatName full_stat_name = Stats::StatName(storage_ptr.get());
   return scope_.counterFromStatName(full_stat_name);
 }
@@ -82,13 +80,17 @@ std::string RedisCommandStats::getCommandFromRequest(const RespValue& request) {
   }
 }
 
-void RedisCommandStats::updateStatsTotal(std::string command) { counter(command, total_).inc(); }
+void RedisCommandStats::updateStatsTotal(std::string command) {
+  Stats::StatName stat_name = stat_name_set_.getStatName(command);
+  counter({prefix_, stat_name, total_}).inc();
+}
 
 void RedisCommandStats::updateStats(const bool success, std::string command) {
+  Stats::StatName stat_name = stat_name_set_.getStatName(command);
   if (success) {
-    counter(command, success_).inc();
+    counter({prefix_, stat_name, success_}).inc(); // TODO: Pass by ref?
   } else {
-    counter(command, error_).inc();
+    counter({prefix_, stat_name, success_}).inc();
   }
 }
 

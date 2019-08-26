@@ -20,7 +20,7 @@ class RedisCommandStats {
 public:
   RedisCommandStats(Stats::Scope& scope, const std::string& prefix, bool enabled);
 
-  Stats::Counter& counter(std::string command, Stats::StatName suffix);
+  Stats::Counter& counter(Stats::StatNameVec stat_names);
   Stats::Histogram& histogram(Stats::StatName stat_name);
   Stats::CompletableTimespanPtr createCommandTimer(std::string command,
                                                    Envoy::TimeSource& time_source);
