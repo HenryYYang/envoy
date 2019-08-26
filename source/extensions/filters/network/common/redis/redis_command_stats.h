@@ -21,7 +21,6 @@ public:
   RedisCommandStats(Stats::Scope& scope, const std::string& prefix, bool enabled);
 
   Stats::Counter& counter(std::string name);
-  Stats::Histogram& histogram(std::string name);
   Stats::Histogram& histogram(Stats::StatName stat_name);
   Stats::CompletableTimespanPtr createCommandTimer(std::string name,
                                                    Envoy::TimeSource& time_source);
@@ -33,7 +32,6 @@ public:
 
 private:
   void createStats(std::string name);
-  Stats::SymbolTable::StoragePtr addPrefix(const Stats::StatName name);
 
   Stats::Scope& scope_;
   Stats::StatNameSet stat_name_set_;

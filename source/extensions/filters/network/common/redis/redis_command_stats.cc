@@ -40,24 +40,17 @@ void RedisCommandStats::createStats(std::string name) {
   stat_name_set_.rememberBuiltin(name + ".latency");
 }
 
-Stats::SymbolTable::StoragePtr RedisCommandStats::addPrefix(const Stats::StatName name) {
-  return scope_.symbolTable().join({prefix_, name});
-}
-
 Stats::Counter& RedisCommandStats::counter(std::string name) {
   Stats::StatName stat_name = stat_name_set_.getStatName(name);
-  const Stats::SymbolTable::StoragePtr stat_name_storage = addPrefix(stat_name);
-  return scope_.counterFromStatName(Stats::StatName(stat_name_storage.get()));
-}
-
-Stats::Histogram& RedisCommandStats::histogram(std::string name) {
-  Stats::StatName stat_name = stat_name_set_.getStatName(name);
-  return histogram(stat_name);
+  Stats::StatName full_stat_name =
+      Stats::StatName(scope_.symbolTable().join({prefix_, stat_name}).get());
+  return scope_.counterFromStatName(full_stat_name);
 }
 
 Stats::Histogram& RedisCommandStats::histogram(Stats::StatName stat_name) {
-  const Stats::SymbolTable::StoragePtr stat_name_storage = addPrefix(stat_name);
-  return scope_.histogramFromStatName(Stats::StatName(stat_name_storage.get()));
+  Stats::StatName full_stat_name =
+      Stats::StatName(scope_.symbolTable().join({prefix_, stat_name}).get());
+  return scope_.histogramFromStatName(full_stat_name);
 }
 
 Stats::CompletableTimespanPtr
