@@ -207,6 +207,13 @@ public:
                            const Config& config,
                            const RedisCommandStatsSharedPtr& redis_command_stats,
                            Stats::Scope& scope, const std::string& auth_password) PURE;
+
+  /**
+  * Get shared Redis command stats object; used for all Redis clients.
+  * @param symbol_table supplies a location to store StatNames
+  * @return RedisCommandStats the shared stats object
+  */
+  virtual const RedisCommandStats& getOrCreateRedisCommandStats(Stats::SymbolTable& symbol_table) PURE;
 };
 
 } // namespace Client

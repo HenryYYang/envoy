@@ -54,7 +54,8 @@ private:
   const Stats::StatName unknown_metric_;
   const ToLowerTable to_lower_table_;
 };
-using RedisCommandStatsSharedPtr = std::shared_ptr<RedisCommandStats>;
+using RedisCommandStatsSharedPtr = std::shared_ptr<RedisCommandStats>; // TODO: Remove
+using RedisCommandStatsUniquePtr = std::unique_ptr<RedisCommandStats>;
 
 } // namespace Redis
 } // namespace Common

@@ -153,10 +153,22 @@ public:
                    const Config& config, const RedisCommandStatsSharedPtr& redis_command_stats,
                    Stats::Scope& scope, const std::string& auth_password) override;
 
+  const RedisCommandStats& getOrCreateRedisCommandStats(Stats::SymbolTable& symbol_table) override {
+    Thread::LockGuard lock(mutex_);
+    if (redis_command_stats_ == nullptr) {
+      redis_command_stats_ = std::make_unique<RedisCommandStats>(symbol_table, "upstream_commands");
+    }
+    return *redis_command_stats_;
+  }
+
   static ClientFactoryImpl instance_;
 
 private:
   DecoderFactoryImpl decoder_factory_;
+  RedisCommandStatsUniquePtr redis_command_stats_;
+
+  // A mutex is used to only create the stats object once, so it can be shared by discover, healthy check and the proxy      filter.
+  mutable Thread::MutexBasicLockable mutex_;
 };
 
 } // namespace Client
