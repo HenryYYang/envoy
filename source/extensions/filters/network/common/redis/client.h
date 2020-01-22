@@ -205,7 +205,7 @@ public:
    */
   virtual ClientPtr create(Upstream::HostConstSharedPtr host, Event::Dispatcher& dispatcher,
                            const Config& config,
-                           const RedisCommandStatsSharedPtr& redis_command_stats,
+                           const RedisCommandStats& redis_command_stats,
                            Stats::Scope& scope, const std::string& auth_password) PURE;
 
   /**

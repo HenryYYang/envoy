@@ -78,11 +78,10 @@ public:
     EXPECT_CALL(*upstream_connection_, connect());
     EXPECT_CALL(*upstream_connection_, noDelay(true));
 
-    redis_command_stats_ =
-        Common::Redis::RedisCommandStats::createRedisCommandStats(stats_.symbolTable());
+    auto redis_command_stats = Common::Redis::Client::ClientFactoryImpl::instance_.getOrCreateRedisCommandStats(stats_.symbolTable());
 
     client_ = ClientImpl::create(host_, dispatcher_, Common::Redis::EncoderPtr{encoder_}, *this,
-                                 *config_, redis_command_stats_, stats_);
+                                 *config_, redis_command_stats, stats_);
     EXPECT_EQ(1UL, host_->cluster_.stats_.upstream_cx_total_.value());
     EXPECT_EQ(1UL, host_->stats_.cx_total_.value());
     EXPECT_EQ(false, client_->active());
@@ -143,7 +142,6 @@ public:
   ClientPtr client_;
   NiceMock<Stats::MockIsolatedStatsStore> stats_;
   Stats::ScopePtr stats_scope_;
-  Common::Redis::RedisCommandStatsSharedPtr redis_command_stats_;
   std::string auth_password_;
 };
 
