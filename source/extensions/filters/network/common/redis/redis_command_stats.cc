@@ -33,7 +33,7 @@ RedisCommandStats::RedisCommandStats(Stats::SymbolTable& symbol_table, const std
 }
 
 Stats::Counter& RedisCommandStats::counter(Stats::Scope& scope,
-                                           const Stats::StatNameVec& stat_names) {
+                                           const Stats::StatNameVec& stat_names) const {
   const Stats::SymbolTable::StoragePtr storage_ptr = symbol_table_.join(stat_names);
   Stats::StatName full_stat_name = Stats::StatName(storage_ptr.get());
   return scope.counterFromStatName(full_stat_name);
@@ -41,7 +41,7 @@ Stats::Counter& RedisCommandStats::counter(Stats::Scope& scope,
 
 Stats::Histogram& RedisCommandStats::histogram(Stats::Scope& scope,
                                                const Stats::StatNameVec& stat_names,
-                                               Stats::Histogram::Unit unit) {
+                                               Stats::Histogram::Unit unit) const {
   const Stats::SymbolTable::StoragePtr storage_ptr = symbol_table_.join(stat_names);
   Stats::StatName full_stat_name = Stats::StatName(storage_ptr.get());
   return scope.histogramFromStatName(full_stat_name, unit);
@@ -49,20 +49,20 @@ Stats::Histogram& RedisCommandStats::histogram(Stats::Scope& scope,
 
 Stats::TimespanPtr RedisCommandStats::createCommandTimer(Stats::Scope& scope,
                                                          Stats::StatName command,
-                                                         Envoy::TimeSource& time_source) {
+                                                         Envoy::TimeSource& time_source) const {
   return std::make_unique<Stats::HistogramCompletableTimespanImpl>(
       histogram(scope, {prefix_, command, latency_}, Stats::Histogram::Unit::Microseconds),
       time_source);
 }
 
 Stats::TimespanPtr RedisCommandStats::createAggregateTimer(Stats::Scope& scope,
-                                                           Envoy::TimeSource& time_source) {
+                                                           Envoy::TimeSource& time_source) const {
   return std::make_unique<Stats::HistogramCompletableTimespanImpl>(
       histogram(scope, {prefix_, upstream_rq_time_}, Stats::Histogram::Unit::Microseconds),
       time_source);
 }
 
-Stats::StatName RedisCommandStats::getCommandFromRequest(const RespValue& request) {
+Stats::StatName RedisCommandStats::getCommandFromRequest(const RespValue& request) const {
   // Get command from RespValue
   switch (request.type()) {
   case RespType::Array:
@@ -78,12 +78,12 @@ Stats::StatName RedisCommandStats::getCommandFromRequest(const RespValue& reques
   }
 }
 
-void RedisCommandStats::updateStatsTotal(Stats::Scope& scope, Stats::StatName command) {
+void RedisCommandStats::updateStatsTotal(Stats::Scope& scope, Stats::StatName command) const {
   counter(scope, {prefix_, command, total_}).inc();
 }
 
 void RedisCommandStats::updateStats(Stats::Scope& scope, Stats::StatName command,
-                                    const bool success) {
+                                    const bool success) const {
   if (success) {
     counter(scope, {prefix_, command, success_}).inc();
   } else {

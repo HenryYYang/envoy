@@ -24,21 +24,24 @@ public:
   // TODO (@FAYiEKcbD0XFqF2QK2E4viAHg8rMm2VbjYKdjTg): Use Singleton to manage a single
   // RedisCommandStats on the client factory so that it can be used for proxy filter, discovery and
   // health check.
+
+  // TODO (@FAYiEKcbD0XFqF2QK2E4viAHg8rMm2VbjYKdjTg): Figure out how to make sure command splitter
+  // behaves correctly wrt redis command stats
   static std::shared_ptr<RedisCommandStats>
   createRedisCommandStats(Stats::SymbolTable& symbol_table) {
     return std::make_shared<Common::Redis::RedisCommandStats>(symbol_table, "upstream_commands");
   }
 
-  Stats::Counter& counter(Stats::Scope& scope, const Stats::StatNameVec& stat_names);
+  Stats::Counter& counter(Stats::Scope& scope, const Stats::StatNameVec& stat_names) const;
   Stats::Histogram& histogram(Stats::Scope& scope, const Stats::StatNameVec& stat_names,
-                              Stats::Histogram::Unit unit);
+                              Stats::Histogram::Unit unit) const;
   Stats::TimespanPtr createCommandTimer(Stats::Scope& scope, Stats::StatName command,
-                                        Envoy::TimeSource& time_source);
-  Stats::TimespanPtr createAggregateTimer(Stats::Scope& scope, Envoy::TimeSource& time_source);
-  Stats::StatName getCommandFromRequest(const RespValue& request);
-  void updateStatsTotal(Stats::Scope& scope, Stats::StatName command);
-  void updateStats(Stats::Scope& scope, Stats::StatName command, const bool success);
-  Stats::StatName getUnusedStatName() { return unused_metric_; }
+                                        Envoy::TimeSource& time_source) const;
+  Stats::TimespanPtr createAggregateTimer(Stats::Scope& scope, Envoy::TimeSource& time_source) const;
+  Stats::StatName getCommandFromRequest(const RespValue& request) const;
+  void updateStatsTotal(Stats::Scope& scope, Stats::StatName command) const;
+  void updateStats(Stats::Scope& scope, Stats::StatName command, const bool success) const;
+  Stats::StatName getUnusedStatName() const { return unused_metric_; }
 
 private:
   Stats::SymbolTable& symbol_table_;
