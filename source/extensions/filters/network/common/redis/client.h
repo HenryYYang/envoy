@@ -205,7 +205,7 @@ public:
    */
   virtual ClientPtr create(Upstream::HostConstSharedPtr host, Event::Dispatcher& dispatcher,
                            const Config& config,
-                           const RedisCommandStats& redis_command_stats,
+                           const RedisCommandStatsSharedPtr& redis_command_stats,
                            Stats::Scope& scope, const std::string& auth_password) PURE;
 
   /**
@@ -213,7 +213,7 @@ public:
   * @param symbol_table supplies a location to store StatNames
   * @return RedisCommandStats the shared stats object
   */
-  virtual const RedisCommandStats& getOrCreateRedisCommandStats(Stats::SymbolTable& symbol_table) PURE;
+  virtual const RedisCommandStatsSharedPtr& getOrCreateRedisCommandStats(Stats::SymbolTable& symbol_table) PURE;
 };
 
 } // namespace Client

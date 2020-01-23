@@ -78,7 +78,7 @@ public:
     EXPECT_CALL(*upstream_connection_, connect());
     EXPECT_CALL(*upstream_connection_, noDelay(true));
 
-    const RedisCommandStats& redis_command_stats = Common::Redis::Client::ClientFactoryImpl::instance_.getOrCreateRedisCommandStats(stats_.symbolTable());
+    const RedisCommandStatsSharedPtr& redis_command_stats = Common::Redis::Client::ClientFactoryImpl::instance_.getOrCreateRedisCommandStats(stats_.symbolTable());
 
     client_ = ClientImpl::create(host_, dispatcher_, Common::Redis::EncoderPtr{encoder_}, *this,
                                  *config_, redis_command_stats, stats_);
@@ -432,6 +432,8 @@ TEST_F(RedisClientImplTest, CommandStatsEnabledTwoRequests) {
   Common::Redis::RespValue request1;
   initializeRedisSimpleCommand(&request1, get_command, "foo");
   MockClientCallbacks callbacks1;
+
+
   EXPECT_CALL(*encoder_, encode(Ref(request1), _));
   EXPECT_CALL(*flush_timer_, enabled()).WillOnce(Return(false));
   PoolRequest* handle1 = client_->makeRequest(request1, callbacks1);
@@ -1185,7 +1187,7 @@ TEST(RedisClientFactoryImplTest, Basic) {
   NiceMock<Event::MockDispatcher> dispatcher;
   ConfigImpl config(createConnPoolSettings());
   Stats::IsolatedStoreImpl stats_;
-  const RedisCommandStats& redis_command_stats = Common::Redis::Client::ClientFactoryImpl::instance_.getOrCreateRedisCommandStats(stats_.symbolTable());
+  const RedisCommandStatsSharedPtr& redis_command_stats = Common::Redis::Client::ClientFactoryImpl::instance_.getOrCreateRedisCommandStats(stats_.symbolTable());
   const std::string auth_password;
   ClientPtr client =
       factory.create(host, dispatcher, config, redis_command_stats, stats_, auth_password);

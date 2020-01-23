@@ -56,7 +56,7 @@ ConfigImpl::ConfigImpl(
 ClientPtr ClientImpl::create(Upstream::HostConstSharedPtr host, Event::Dispatcher& dispatcher,
                              EncoderPtr&& encoder, DecoderFactory& decoder_factory,
                              const Config& config,
-                             const RedisCommandStats& redis_command_stats,
+                             const RedisCommandStatsSharedPtr& redis_command_stats,
                              Stats::Scope& scope) {
   auto client = std::make_unique<ClientImpl>(host, dispatcher, std::move(encoder), decoder_factory,
                                              config, redis_command_stats, scope);
@@ -70,7 +70,7 @@ ClientPtr ClientImpl::create(Upstream::HostConstSharedPtr host, Event::Dispatche
 
 ClientImpl::ClientImpl(Upstream::HostConstSharedPtr host, Event::Dispatcher& dispatcher,
                        EncoderPtr&& encoder, DecoderFactory& decoder_factory, const Config& config,
-                       const RedisCommandStats& redis_command_stats, Stats::Scope& scope)
+                       const RedisCommandStatsSharedPtr& redis_command_stats, Stats::Scope& scope)
     : host_(host), encoder_(std::move(encoder)), decoder_(decoder_factory.create(*this)),
       config_(config),
       connect_or_op_timer_(dispatcher.createTimer([this]() { onConnectOrOpTimeout(); })),
@@ -108,11 +108,11 @@ PoolRequest* ClientImpl::makeRequest(const RespValue& request, ClientCallbacks& 
   Stats::StatName command;
   if (config_.enableCommandStats()) {
     // Only lowercase command and get StatName if we enable command stats
-    command = redis_command_stats_.getCommandFromRequest(request);
-    redis_command_stats_.updateStatsTotal(scope_, command);
+    command = redis_command_stats_->getCommandFromRequest(request);
+    redis_command_stats_->updateStatsTotal(scope_, command);
   } else {
     // If disabled, we use a placeholder stat name "unused" that is not used
-    command = redis_command_stats_.getUnusedStatName();
+    command = redis_command_stats_->getUnusedStatName();
   }
 
   pending_requests_.emplace_back(*this, callbacks, command);
@@ -210,7 +210,7 @@ void ClientImpl::onRespValue(RespValuePtr&& value) {
 
   if (config_.enableCommandStats()) {
     bool success = !canceled && (value->type() != Common::Redis::RespType::Error);
-    redis_command_stats_.updateStats(scope_, request.command_, success);
+    redis_command_stats_->updateStats(scope_, request.command_, success);
     request.command_request_timer_->complete();
   }
   request.aggregate_request_timer_->complete();
@@ -261,10 +261,10 @@ void ClientImpl::onRespValue(RespValuePtr&& value) {
 ClientImpl::PendingRequest::PendingRequest(ClientImpl& parent, ClientCallbacks& callbacks,
                                            Stats::StatName command)
     : parent_(parent), callbacks_(callbacks), command_{command},
-      aggregate_request_timer_(parent_.redis_command_stats_.createAggregateTimer(
+      aggregate_request_timer_(parent_.redis_command_stats_->createAggregateTimer(
           parent_.scope_, parent_.time_source_)) {
   if (parent_.config_.enableCommandStats()) {
-    command_request_timer_ = parent_.redis_command_stats_.createCommandTimer(
+    command_request_timer_ = parent_.redis_command_stats_->createCommandTimer(
         parent_.scope_, command_, parent_.time_source_);
   }
   parent.host_->cluster().stats().upstream_rq_total_.inc();
@@ -303,7 +303,7 @@ ClientFactoryImpl ClientFactoryImpl::instance_;
 
 ClientPtr ClientFactoryImpl::create(Upstream::HostConstSharedPtr host,
                                     Event::Dispatcher& dispatcher, const Config& config,
-                                    const RedisCommandStats& redis_command_stats,
+                                    const RedisCommandStatsSharedPtr& redis_command_stats,
                                     Stats::Scope& scope, const std::string& auth_password) {
   ClientPtr client = ClientImpl::create(host, dispatcher, EncoderPtr{new EncoderImpl()},
                                         decoder_factory_, config, redis_command_stats, scope);
