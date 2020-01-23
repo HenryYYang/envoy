@@ -71,12 +71,12 @@ public:
   static ClientPtr create(Upstream::HostConstSharedPtr host, Event::Dispatcher& dispatcher,
                           EncoderPtr&& encoder, DecoderFactory& decoder_factory,
                           const Config& config,
-                          const RedisCommandStatsSharedPtr& redis_command_stats,
+                          const RedisCommandStatsSharedPtr redis_command_stats,
                           Stats::Scope& scope);
 
   ClientImpl(Upstream::HostConstSharedPtr host, Event::Dispatcher& dispatcher, EncoderPtr&& encoder,
              DecoderFactory& decoder_factory, const Config& config,
-             const RedisCommandStatsSharedPtr& redis_command_stats, Stats::Scope& scope);
+             const RedisCommandStatsSharedPtr redis_command_stats, Stats::Scope& scope);
   ~ClientImpl() override;
 
   // Client
@@ -142,7 +142,7 @@ private:
   bool connected_{};
   Event::TimerPtr flush_timer_;
   Envoy::TimeSource& time_source_;
-  const RedisCommandStatsSharedPtr& redis_command_stats_;
+  const RedisCommandStatsSharedPtr redis_command_stats_;
   Stats::Scope& scope_;
 };
 
@@ -150,10 +150,10 @@ class ClientFactoryImpl : public ClientFactory {
 public:
   // RedisProxy::ConnPool::ClientFactoryImpl
   ClientPtr create(Upstream::HostConstSharedPtr host, Event::Dispatcher& dispatcher,
-                   const Config& config, const RedisCommandStatsSharedPtr& redis_command_stats,
+                   const Config& config, const RedisCommandStatsSharedPtr redis_command_stats,
                    Stats::Scope& scope, const std::string& auth_password) override;
 
-  const RedisCommandStatsSharedPtr& getOrCreateRedisCommandStats(Stats::SymbolTable& symbol_table) override {
+  const RedisCommandStatsSharedPtr getOrCreateRedisCommandStats(Stats::SymbolTable& symbol_table) override {
     Thread::LockGuard lock(mutex_);
     if (redis_command_stats_ == nullptr) {
       redis_command_stats_ = std::make_shared<RedisCommandStats>(symbol_table, "upstream_commands");

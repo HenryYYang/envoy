@@ -56,7 +56,7 @@ ConfigImpl::ConfigImpl(
 ClientPtr ClientImpl::create(Upstream::HostConstSharedPtr host, Event::Dispatcher& dispatcher,
                              EncoderPtr&& encoder, DecoderFactory& decoder_factory,
                              const Config& config,
-                             const RedisCommandStatsSharedPtr& redis_command_stats,
+                             const RedisCommandStatsSharedPtr redis_command_stats,
                              Stats::Scope& scope) {
   auto client = std::make_unique<ClientImpl>(host, dispatcher, std::move(encoder), decoder_factory,
                                              config, redis_command_stats, scope);
@@ -70,7 +70,7 @@ ClientPtr ClientImpl::create(Upstream::HostConstSharedPtr host, Event::Dispatche
 
 ClientImpl::ClientImpl(Upstream::HostConstSharedPtr host, Event::Dispatcher& dispatcher,
                        EncoderPtr&& encoder, DecoderFactory& decoder_factory, const Config& config,
-                       const RedisCommandStatsSharedPtr& redis_command_stats, Stats::Scope& scope)
+                       const RedisCommandStatsSharedPtr redis_command_stats, Stats::Scope& scope)
     : host_(host), encoder_(std::move(encoder)), decoder_(decoder_factory.create(*this)),
       config_(config),
       connect_or_op_timer_(dispatcher.createTimer([this]() { onConnectOrOpTimeout(); })),
@@ -303,7 +303,7 @@ ClientFactoryImpl ClientFactoryImpl::instance_;
 
 ClientPtr ClientFactoryImpl::create(Upstream::HostConstSharedPtr host,
                                     Event::Dispatcher& dispatcher, const Config& config,
-                                    const RedisCommandStatsSharedPtr& redis_command_stats,
+                                    const RedisCommandStatsSharedPtr redis_command_stats,
                                     Stats::Scope& scope, const std::string& auth_password) {
   ClientPtr client = ClientImpl::create(host, dispatcher, EncoderPtr{new EncoderImpl()},
                                         decoder_factory_, config, redis_command_stats, scope);
