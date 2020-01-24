@@ -19,7 +19,7 @@ namespace Redis {
 
 class RedisCommandStats {
 public:
-  RedisCommandStats(Stats::SymbolTable& symbol_table, const std::string& prefix);
+  RedisCommandStats(Stats::Scope& scope, const std::string& prefix);
 
   // TODO (@FAYiEKcbD0XFqF2QK2E4viAHg8rMm2VbjYKdjTg): Use Singleton to manage a single
   // RedisCommandStats on the client factory so that it can be used for proxy filter, discovery and
@@ -28,8 +28,8 @@ public:
   // TODO (@FAYiEKcbD0XFqF2QK2E4viAHg8rMm2VbjYKdjTg): Figure out how to make sure command splitter
   // behaves correctly wrt redis command stats
   static std::shared_ptr<RedisCommandStats>
-  createRedisCommandStats(Stats::SymbolTable& symbol_table) {
-    return std::make_shared<Common::Redis::RedisCommandStats>(symbol_table, "upstream_commands");
+  createRedisCommandStats(Stats::Scope& scope) {
+    return std::make_shared<Common::Redis::RedisCommandStats>(scope, "upstream_commands");
   }
 
   Stats::Counter& counter(Stats::Scope& scope, const Stats::StatNameVec& stat_names) const;
@@ -44,7 +44,7 @@ public:
   Stats::StatName getUnusedStatName() const { return unused_metric_; }
 
 private:
-  Stats::SymbolTable& symbol_table_;
+  Stats::Scope& scope_;
   Stats::StatNameSetPtr stat_name_set_;
   const Stats::StatName prefix_;
   const Stats::StatName upstream_rq_time_;

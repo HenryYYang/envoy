@@ -150,13 +150,14 @@ class ClientFactoryImpl : public ClientFactory {
 public:
   // RedisProxy::ConnPool::ClientFactoryImpl
   ClientPtr create(Upstream::HostConstSharedPtr host, Event::Dispatcher& dispatcher,
-                   const Config& config, const RedisCommandStatsSharedPtr redis_command_stats,
+                   const Config& config,
+                   const RedisCommandStatsSharedPtr redis_command_stats,
                    Stats::Scope& scope, const std::string& auth_password) override;
 
-  const RedisCommandStatsSharedPtr getOrCreateRedisCommandStats(Stats::SymbolTable& symbol_table) override {
+  const RedisCommandStatsSharedPtr getOrCreateRedisCommandStats(Stats::Scope& scope) override {
     Thread::LockGuard lock(mutex_);
     if (redis_command_stats_ == nullptr) {
-      redis_command_stats_ = std::make_shared<RedisCommandStats>(symbol_table, "upstream_commands");
+      redis_command_stats_ = std::make_shared<RedisCommandStats>(scope, "upstream_commands");
     }
     return redis_command_stats_;
   }

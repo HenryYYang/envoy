@@ -10,8 +10,8 @@ namespace NetworkFilters {
 namespace Common {
 namespace Redis {
 
-RedisCommandStats::RedisCommandStats(Stats::SymbolTable& symbol_table, const std::string& prefix)
-    : symbol_table_(symbol_table), stat_name_set_(symbol_table_.makeSet("Redis")),
+RedisCommandStats::RedisCommandStats(Stats::Scope& scope, const std::string& prefix)
+    : scope_(scope), stat_name_set_(scope.symbolTable().makeSet("Redis")),
       prefix_(stat_name_set_->add(prefix)),
       upstream_rq_time_(stat_name_set_->add("upstream_rq_time")),
       latency_(stat_name_set_->add("latency")), total_(stat_name_set_->add("total")),
@@ -34,7 +34,7 @@ RedisCommandStats::RedisCommandStats(Stats::SymbolTable& symbol_table, const std
 
 Stats::Counter& RedisCommandStats::counter(Stats::Scope& scope,
                                            const Stats::StatNameVec& stat_names) const {
-  const Stats::SymbolTable::StoragePtr storage_ptr = symbol_table_.join(stat_names);
+  const Stats::SymbolTable::StoragePtr storage_ptr = scope_.symbolTable().join(stat_names);
   Stats::StatName full_stat_name = Stats::StatName(storage_ptr.get());
   return scope.counterFromStatName(full_stat_name);
 }
@@ -42,7 +42,7 @@ Stats::Counter& RedisCommandStats::counter(Stats::Scope& scope,
 Stats::Histogram& RedisCommandStats::histogram(Stats::Scope& scope,
                                                const Stats::StatNameVec& stat_names,
                                                Stats::Histogram::Unit unit) const {
-  const Stats::SymbolTable::StoragePtr storage_ptr = symbol_table_.join(stat_names);
+  const Stats::SymbolTable::StoragePtr storage_ptr = scope_.symbolTable().join(stat_names);
   Stats::StatName full_stat_name = Stats::StatName(storage_ptr.get());
   return scope.histogramFromStatName(full_stat_name, unit);
 }

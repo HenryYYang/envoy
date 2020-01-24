@@ -205,15 +205,15 @@ public:
    */
   virtual ClientPtr create(Upstream::HostConstSharedPtr host, Event::Dispatcher& dispatcher,
                            const Config& config,
-                           const RedisCommandStatsSharedPtr& redis_command_stats,
+                           const RedisCommandStatsSharedPtr redis_command_stats,
                            Stats::Scope& scope, const std::string& auth_password) PURE;
 
   /**
   * Get shared Redis command stats object; used for all Redis clients.
-  * @param symbol_table supplies a location to store StatNames
-  * @return RedisCommandStats the shared stats object
+  * @param scope supplies a stats scope
+  * @return RedisCommandStatsSharedPtr pointer to the shared stats object
   */
-  virtual const RedisCommandStatsSharedPtr& getOrCreateRedisCommandStats(Stats::SymbolTable& symbol_table) PURE;
+  virtual const RedisCommandStatsSharedPtr getOrCreateRedisCommandStats(Stats::Scope& scope) PURE;
 };
 
 } // namespace Client
