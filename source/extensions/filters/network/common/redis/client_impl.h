@@ -150,8 +150,7 @@ class ClientFactoryImpl : public ClientFactory {
 public:
   // RedisProxy::ConnPool::ClientFactoryImpl
   ClientPtr create(Upstream::HostConstSharedPtr host, Event::Dispatcher& dispatcher,
-                   const Config& config,
-                   const RedisCommandStatsSharedPtr redis_command_stats,
+                   const Config& config, const RedisCommandStatsSharedPtr redis_command_stats,
                    Stats::Scope& scope, const std::string& auth_password) override;
 
   const RedisCommandStatsSharedPtr getOrCreateRedisCommandStats(Stats::Scope& scope) override {
@@ -168,7 +167,8 @@ private:
   DecoderFactoryImpl decoder_factory_;
   RedisCommandStatsSharedPtr redis_command_stats_;
 
-  // A mutex is used to only create the stats object once, so it can be shared by discover, healthy check and the proxy      filter.
+  // A mutex is used to only create the stats object once, so it can be shared by discover, healthy
+  // check and the proxy      filter.
   mutable Thread::MutexBasicLockable mutex_;
 };
 

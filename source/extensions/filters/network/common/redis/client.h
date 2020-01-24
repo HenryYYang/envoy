@@ -209,10 +209,10 @@ public:
                            Stats::Scope& scope, const std::string& auth_password) PURE;
 
   /**
-  * Get shared Redis command stats object; used for all Redis clients.
-  * @param scope supplies a stats scope
-  * @return RedisCommandStatsSharedPtr pointer to the shared stats object
-  */
+   * Get shared Redis command stats object; used for all Redis clients.
+   * @param scope supplies a stats scope
+   * @return RedisCommandStatsSharedPtr pointer to the shared stats object
+   */
   virtual const RedisCommandStatsSharedPtr getOrCreateRedisCommandStats(Stats::Scope& scope) PURE;
 };
 

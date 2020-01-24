@@ -21,14 +21,9 @@ class RedisCommandStats {
 public:
   RedisCommandStats(Stats::Scope& scope, const std::string& prefix);
 
-  // TODO (@FAYiEKcbD0XFqF2QK2E4viAHg8rMm2VbjYKdjTg): Use Singleton to manage a single
-  // RedisCommandStats on the client factory so that it can be used for proxy filter, discovery and
-  // health check.
-
   // TODO (@FAYiEKcbD0XFqF2QK2E4viAHg8rMm2VbjYKdjTg): Figure out how to make sure command splitter
-  // behaves correctly wrt redis command stats
-  static std::shared_ptr<RedisCommandStats>
-  createRedisCommandStats(Stats::Scope& scope) {
+  // behaves correctly with respect to redis command stats
+  static std::shared_ptr<RedisCommandStats> createRedisCommandStats(Stats::Scope& scope) {
     return std::make_shared<Common::Redis::RedisCommandStats>(scope, "upstream_commands");
   }
 
@@ -37,7 +32,8 @@ public:
                               Stats::Histogram::Unit unit) const;
   Stats::TimespanPtr createCommandTimer(Stats::Scope& scope, Stats::StatName command,
                                         Envoy::TimeSource& time_source) const;
-  Stats::TimespanPtr createAggregateTimer(Stats::Scope& scope, Envoy::TimeSource& time_source) const;
+  Stats::TimespanPtr createAggregateTimer(Stats::Scope& scope,
+                                          Envoy::TimeSource& time_source) const;
   Stats::StatName getCommandFromRequest(const RespValue& request) const;
   void updateStatsTotal(Stats::Scope& scope, Stats::StatName command) const;
   void updateStats(Stats::Scope& scope, Stats::StatName command, const bool success) const;
