@@ -901,6 +901,14 @@ public:
   virtual const absl::optional<envoy::config::core::v3::UpstreamHttpProtocolOptions>&
   upstreamHttpProtocolOptions() const PURE;
 
+  // TODO: Proper comment.
+  // Register a pointer to a factory class.
+  // TODO: Not a big fan of using void pointer. Unfortunately using generics with virtual won't work. Perhaps use a subclass?
+  using UpstreamDatumSharedPtr = std::shared_ptr<void>;
+  // TODO: Should "key" be "name"?
+  virtual void registerUpstreamSpecificData(const std::string key, const UpstreamDatumSharedPtr target) PURE;
+  virtual const UpstreamDatumSharedPtr getUpstreamSpecificData(const std::string key) PURE;
+
 protected:
   /**
    * Invoked by extensionProtocolOptionsTyped.

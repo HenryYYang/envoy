@@ -585,6 +585,20 @@ public:
     return upstream_http_protocol_options_;
   }
 
+  void registerUpstreamSpecificData(const std::string key, const UpstreamDatumSharedPtr target) override {
+    if (upstream_specific_data_.find(key) == upstream_specific_data_.end()) {
+      upstream_specific_data_[key] = target;
+    }
+  }
+
+  virtual const UpstreamDatumSharedPtr getUpstreamSpecificData(const std::string key) override {
+    if (upstream_specific_data_.find(key) == upstream_specific_data_.end()) {
+      return nullptr; // TODO: Can we force an optional here?
+    } else {
+      return upstream_specific_data_[key];
+    }
+  }
+
   absl::optional<std::string> eds_service_name() const override { return eds_service_name_; }
 
   void createNetworkFilterChain(Network::Connection&) const override;
@@ -645,6 +659,7 @@ private:
   const absl::optional<envoy::config::cluster::v3::Cluster::CustomClusterType> cluster_type_;
   const std::unique_ptr<Server::Configuration::CommonFactoryContext> factory_context_;
   std::vector<Network::FilterFactoryCb> filter_factories_;
+  std::map<const std::string, UpstreamDatumSharedPtr> upstream_specific_data_;
 };
 
 /**
