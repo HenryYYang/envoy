@@ -591,11 +591,12 @@ public:
     }
   }
 
-  virtual const UpstreamDatumSharedPtr getUpstreamSpecificData(const std::string key) override {
-    if (upstream_specific_data_.find(key) == upstream_specific_data_.end()) {
+  virtual const UpstreamDatumSharedPtr getUpstreamSpecificData(const std::string key) const override {
+    auto found = upstream_specific_data_.find(key);
+    if (found == upstream_specific_data_.end()) {
       return nullptr; // TODO: Can we force an optional here?
     } else {
-      return upstream_specific_data_[key];
+      return found->second;
     }
   }
 

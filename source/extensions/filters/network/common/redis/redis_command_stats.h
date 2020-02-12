@@ -60,7 +60,7 @@ using RedisCommandStatsSharedPtr = std::shared_ptr<RedisCommandStats>;
  */
 class RedisCommandStatsFactory {
   public:
-    const std::string upstream_map_key = "redis_command_stats"; // Use in cluster upstream specific data map
+    static const std::string UPSTREAM_MAP_KEY;
   
     const RedisCommandStatsSharedPtr getOrCreateRedisCommandStats(Stats::Scope& scope) {
       Thread::LockGuard lock(mutex_);
@@ -75,6 +75,8 @@ class RedisCommandStatsFactory {
     mutable Thread::MutexBasicLockable mutex_;
     RedisCommandStatsSharedPtr redis_command_stats_;
 };
+
+
 
 } // namespace Redis
 } // namespace Common

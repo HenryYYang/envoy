@@ -10,6 +10,8 @@ namespace NetworkFilters {
 namespace Common {
 namespace Redis {
 
+const std::string RedisCommandStatsFactory::UPSTREAM_MAP_KEY = "redis_command_stats";
+
 RedisCommandStats::RedisCommandStats(Stats::Scope& scope, const std::string& prefix)
     : scope_(scope), stat_name_set_(scope.symbolTable().makeSet("Redis")),
       prefix_(stat_name_set_->add(prefix)),

@@ -110,6 +110,12 @@ PoolRequest* ClientImpl::makeRequest(const RespValue& request, ClientCallbacks& 
     // Only lowercase command and get StatName if we enable command stats
     command = redis_command_stats_->getCommandFromRequest(request);
     redis_command_stats_->updateStatsTotal(scope_, command);
+
+    // Try getting singleton
+    auto x = host_->cluster().getUpstreamSpecificData(RedisCommandStatsFactory::UPSTREAM_MAP_KEY);
+    x.get(); // NO-OP
+    // const RedisCommandStatsSharedPtr command_stats_factory = reinterpret_cast<const RedisCommandStatsSharedPtr>(x);
+
   } else {
     // If disabled, we use a placeholder stat name "unused" that is not used
     command = redis_command_stats_->getUnusedStatName();

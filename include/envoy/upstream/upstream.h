@@ -907,7 +907,7 @@ public:
   using UpstreamDatumSharedPtr = std::shared_ptr<void>;
   // TODO: Should "key" be "name"?
   virtual void registerUpstreamSpecificData(const std::string key, const UpstreamDatumSharedPtr target) PURE;
-  virtual const UpstreamDatumSharedPtr getUpstreamSpecificData(const std::string key) PURE;
+  virtual const UpstreamDatumSharedPtr getUpstreamSpecificData(const std::string key) const PURE;
 
 protected:
   /**
