@@ -59,24 +59,22 @@ using RedisCommandStatsSharedPtr = std::shared_ptr<RedisCommandStats>;
  * Factory class that we register with upstream ClusterInfo map of upstream-specific data.
  */
 class RedisCommandStatsFactory {
-  public:
-    static const std::string UPSTREAM_MAP_KEY;
-  
-    const RedisCommandStatsSharedPtr getOrCreateRedisCommandStats(Stats::Scope& scope) {
-      Thread::LockGuard lock(mutex_);
-      if (redis_command_stats_ == nullptr) {
-          redis_command_stats_ = std::make_shared<RedisCommandStats>(scope, prefix_);
-      }
-      return redis_command_stats_;
+public:
+  static const std::string UPSTREAM_MAP_KEY;
+
+  const RedisCommandStatsSharedPtr getOrCreateRedisCommandStats(Stats::Scope& scope) {
+    Thread::LockGuard lock(mutex_);
+    if (redis_command_stats_ == nullptr) {
+      redis_command_stats_ = std::make_shared<RedisCommandStats>(scope, prefix_);
     }
+    return redis_command_stats_;
+  }
 
-  private:
-    const std::string prefix_ = "upstream_commands";
-    mutable Thread::MutexBasicLockable mutex_;
-    RedisCommandStatsSharedPtr redis_command_stats_;
+private:
+  const std::string prefix_ = "upstream_commands";
+  mutable Thread::MutexBasicLockable mutex_;
+  RedisCommandStatsSharedPtr redis_command_stats_;
 };
-
-
 
 } // namespace Redis
 } // namespace Common

@@ -585,13 +585,15 @@ public:
     return upstream_http_protocol_options_;
   }
 
-  void registerUpstreamSpecificData(const std::string key, const UpstreamDatumSharedPtr target) override {
+  void registerUpstreamSpecificData(const std::string key,
+                                    const UpstreamDatumSharedPtr target) override {
     if (upstream_specific_data_.find(key) == upstream_specific_data_.end()) {
       upstream_specific_data_[key] = target;
     }
   }
 
-  virtual const UpstreamDatumSharedPtr getUpstreamSpecificData(const std::string key) const override {
+  virtual const UpstreamDatumSharedPtr
+  getUpstreamSpecificData(const std::string key) const override {
     auto found = upstream_specific_data_.find(key);
     if (found == upstream_specific_data_.end()) {
       return nullptr; // TODO: Can we force an optional here?
