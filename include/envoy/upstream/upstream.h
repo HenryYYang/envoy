@@ -906,7 +906,7 @@ public:
   // TODO: Not a big fan of using void pointer. Unfortunately using generics with virtual won't work. Perhaps use a subclass?
   using UpstreamDatumSharedPtr = std::shared_ptr<void>;
   // TODO: Should "key" be "name"?
-  virtual void registerUpstreamSpecificData(const std::string key, const UpstreamDatumSharedPtr target) PURE;
+  virtual void registerUpstreamSpecificData(const std::string key, const UpstreamDatumSharedPtr target) PURE; // TODO: Make this const??!?!? Can we use in non-const fashion!??
   virtual const UpstreamDatumSharedPtr getUpstreamSpecificData(const std::string key) const PURE;
 
 protected:

@@ -112,6 +112,9 @@ PoolRequest* ClientImpl::makeRequest(const RespValue& request, ClientCallbacks& 
     redis_command_stats_->updateStatsTotal(scope_, command);
 
     // Try getting singleton
+    // Two options here:
+    // 1) Somehow make the pointer castable (ie don't use void, store a subclass)
+    // 2) Somehow cast a void pointer. Could we use generics under the hood here even due to virtualness!?
     auto x = host_->cluster().getUpstreamSpecificData(RedisCommandStatsFactory::UPSTREAM_MAP_KEY);
     x.get(); // NO-OP
     // const RedisCommandStatsSharedPtr command_stats_factory = reinterpret_cast<const RedisCommandStatsSharedPtr>(x);

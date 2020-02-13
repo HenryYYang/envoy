@@ -104,6 +104,11 @@ Network::FilterFactoryCb RedisProxyFilterConfigFactory::createFilterFactoryFromP
 REGISTER_FACTORY(RedisProxyFilterConfigFactory,
                  Server::Configuration::NamedNetworkFilterConfigFactory);
 
+/**
+ * Static registration for upstream redis command stats.
+ */
+// REGISTER_UPSTREAM_SPECIFIC_DATA(RedisCommandStatsFactory)
+
 } // namespace RedisProxy
 } // namespace NetworkFilters
 } // namespace Extensions
