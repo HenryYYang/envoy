@@ -71,12 +71,10 @@ public:
   static ClientPtr create(Upstream::HostConstSharedPtr host, Event::Dispatcher& dispatcher,
                           EncoderPtr&& encoder, DecoderFactory& decoder_factory,
                           const Config& config,
-                          const RedisCommandStatsSharedPtr& redis_command_stats,
                           Stats::Scope& scope);
 
   ClientImpl(Upstream::HostConstSharedPtr host, Event::Dispatcher& dispatcher, EncoderPtr&& encoder,
-             DecoderFactory& decoder_factory, const Config& config,
-             const RedisCommandStatsSharedPtr& redis_command_stats, Stats::Scope& scope);
+             DecoderFactory& decoder_factory, const Config& config, Stats::Scope& scope);
   ~ClientImpl() override;
 
   // Client
@@ -105,7 +103,7 @@ private:
   };
 
   struct PendingRequest : public PoolRequest {
-    PendingRequest(ClientImpl& parent, ClientCallbacks& callbacks, Stats::StatName stat_name);
+    PendingRequest(ClientImpl& parent, ClientCallbacks& callbacks, absl::optional<Stats::StatName> stat_name);
     ~PendingRequest() override;
 
     // PoolRequest
@@ -113,10 +111,10 @@ private:
 
     ClientImpl& parent_;
     ClientCallbacks& callbacks_;
-    Stats::StatName command_;
+    absl::optional<Stats::StatName> command_;
     bool canceled_{};
-    Stats::TimespanPtr aggregate_request_timer_;
-    Stats::TimespanPtr command_request_timer_;
+    absl::optional<Stats::TimespanPtr> aggregate_request_timer_;
+    absl::optional<Stats::TimespanPtr> command_request_timer_;
   };
 
   void onConnectOrOpTimeout();
@@ -142,7 +140,6 @@ private:
   bool connected_{};
   Event::TimerPtr flush_timer_;
   Envoy::TimeSource& time_source_;
-  const RedisCommandStatsSharedPtr redis_command_stats_;
   Stats::Scope& scope_;
 };
 
@@ -150,8 +147,7 @@ class ClientFactoryImpl : public ClientFactory {
 public:
   // RedisProxy::ConnPool::ClientFactoryImpl
   ClientPtr create(Upstream::HostConstSharedPtr host, Event::Dispatcher& dispatcher,
-                   const Config& config, const RedisCommandStatsSharedPtr& redis_command_stats,
-                   Stats::Scope& scope, const std::string& auth_password) override;
+                   const Config& config, Stats::Scope& scope, const std::string& auth_password) override;
 
   static ClientFactoryImpl instance_;
 

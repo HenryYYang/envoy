@@ -521,6 +521,7 @@ public:
                                                                   const std::string& stat_prefix,
                                                                   bool track_remaining);
   static ClusterTimeoutBudgetStats generateTimeoutBudgetStats(Stats::Scope&);
+  static std::map<const std::string, ClusterSpecificDatumSharedPtr> generateClusterSpecificData(const Protobuf::RepeatedPtrField<std::string>& names, Stats::Scope& scope);
 
   // Upstream::ClusterInfo
   bool addedViaApi() const override { return added_via_api_; }
@@ -564,6 +565,7 @@ public:
   ResourceManager& resourceManager(ResourcePriority priority) const override;
   TransportSocketMatcher& transportSocketMatcher() const override { return *socket_matcher_; }
   ClusterStats& stats() const override { return stats_; }
+  ClusterSpecificDatumSharedPtr getClusterSpecificData(std::string name) const override;
   Stats::Scope& statsScope() const override { return *stats_scope_; }
   ClusterLoadReportStats& loadReportStats() const override { return load_report_stats_; }
   const absl::optional<ClusterTimeoutBudgetStats>& timeoutBudgetStats() const override {
@@ -647,6 +649,7 @@ private:
   const absl::optional<envoy::config::cluster::v3::Cluster::CustomClusterType> cluster_type_;
   const std::unique_ptr<Server::Configuration::CommonFactoryContext> factory_context_;
   std::vector<Network::FilterFactoryCb> filter_factories_;
+  const std::map<const std::string, ClusterSpecificDatumSharedPtr> cluster_specific_datum_map_;
 };
 
 /**

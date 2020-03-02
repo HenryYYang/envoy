@@ -6,6 +6,9 @@
 #include "common/network/utility.h"
 #include "common/upstream/upstream_impl.h"
 
+#include "extensions/upstream_specific_data/well_known_names.h"
+#include "extensions/upstream_specific_data/redis_command_stats.h"
+
 #include "extensions/filters/network/common/redis/client_impl.h"
 #include "extensions/filters/network/common/redis/utility.h"
 
@@ -22,6 +25,7 @@ using testing::_;
 using testing::Eq;
 using testing::InSequence;
 using testing::Invoke;
+using testing::Mock;
 using testing::Property;
 using testing::Ref;
 using testing::Return;
@@ -78,11 +82,8 @@ public:
     EXPECT_CALL(*upstream_connection_, connect());
     EXPECT_CALL(*upstream_connection_, noDelay(true));
 
-    redis_command_stats_ =
-        Common::Redis::RedisCommandStats::createRedisCommandStats(stats_.symbolTable());
-
     client_ = ClientImpl::create(host_, dispatcher_, Common::Redis::EncoderPtr{encoder_}, *this,
-                                 *config_, redis_command_stats_, stats_);
+                                 *config_, stats_);
     EXPECT_EQ(1UL, host_->cluster_.stats_.upstream_cx_total_.value());
     EXPECT_EQ(1UL, host_->stats_.cx_total_.value());
     EXPECT_EQ(false, client_->active());
@@ -143,7 +144,6 @@ public:
   ClientPtr client_;
   NiceMock<Stats::MockIsolatedStatsStore> stats_;
   Stats::ScopePtr stats_scope_;
-  Common::Redis::RedisCommandStatsSharedPtr redis_command_stats_;
   std::string auth_password_;
 };
 
@@ -371,6 +371,11 @@ TEST_F(RedisClientImplTest, CommandStatsDisabledSingleRequest) {
 
   setup();
 
+  // Setup command stats
+  auto rcs = std::make_shared<Extensions::UpstreamSpecificData::RedisCommandStats>(stats_, "upstream_commands");
+  std::string key = Extensions::UpstreamSpecificData::UpstreamSpecificDataNames::get().RedisCommandStats; // TODO: Make enum?
+  host_->cluster_.cluster_specific_datum_map_[key] = rcs;
+
   client_->initialize(auth_password_);
 
   std::string get_command = "get";
@@ -397,6 +402,7 @@ TEST_F(RedisClientImplTest, CommandStatsDisabledSingleRequest) {
 
     simTime().setMonotonicTime(std::chrono::microseconds(10));
 
+    // TODO: This can be commented out and test still passes!???
     EXPECT_CALL(stats_,
                 deliverHistogramToSinks(
                     Property(&Stats::Metric::name, "upstream_commands.upstream_rq_time"), 10));
@@ -426,6 +432,11 @@ TEST_F(RedisClientImplTest, CommandStatsEnabledTwoRequests) {
   InSequence s;
 
   setup(std::make_unique<ConfigEnableCommandStats>());
+
+  // Setup command stats
+  auto rcs = std::make_shared<Extensions::UpstreamSpecificData::RedisCommandStats>(stats_, "upstream_commands");
+  std::string key = Extensions::UpstreamSpecificData::UpstreamSpecificDataNames::get().RedisCommandStats; // TODO: Make enum?
+  host_->cluster_.cluster_specific_datum_map_[key] = rcs;
 
   client_->initialize(auth_password_);
 
@@ -461,6 +472,7 @@ TEST_F(RedisClientImplTest, CommandStatsEnabledTwoRequests) {
 
     simTime().setMonotonicTime(std::chrono::microseconds(10));
 
+    // TODO: WTF? Why doesn't this work?
     EXPECT_CALL(stats_, deliverHistogramToSinks(
                             Property(&Stats::Metric::name, "upstream_commands.get.latency"), 10));
     EXPECT_CALL(stats_,
@@ -475,6 +487,7 @@ TEST_F(RedisClientImplTest, CommandStatsEnabledTwoRequests) {
                 putResult(Upstream::Outlier::Result::ExtOriginRequestSuccess, _));
     callbacks_->onRespValue(std::move(response1));
 
+    // TODO: WTF? Why doesn't this work?
     EXPECT_CALL(stats_, deliverHistogramToSinks(
                             Property(&Stats::Metric::name, "upstream_commands.get.latency"), 10));
     EXPECT_CALL(stats_,
@@ -1187,11 +1200,9 @@ TEST(RedisClientFactoryImplTest, Basic) {
   NiceMock<Event::MockDispatcher> dispatcher;
   ConfigImpl config(createConnPoolSettings());
   Stats::IsolatedStoreImpl stats_;
-  auto redis_command_stats =
-      Common::Redis::RedisCommandStats::createRedisCommandStats(stats_.symbolTable());
   const std::string auth_password;
   ClientPtr client =
-      factory.create(host, dispatcher, config, redis_command_stats, stats_, auth_password);
+      factory.create(host, dispatcher, config, stats_, auth_password);
   client->close();
 }
 } // namespace Client
