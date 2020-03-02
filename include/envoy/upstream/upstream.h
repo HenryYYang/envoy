@@ -671,6 +671,12 @@ using ProtocolOptionsConfigConstSharedPtr = std::shared_ptr<const ProtocolOption
 class ClusterTypedMetadataFactory : public Envoy::Config::TypedMetadataFactory {};
 
 /**
+ * Base class for data attached to cluster in an upstream-specific fashion.
+ */
+class ClusterSpecificDatum {};
+using ClusterSpecificDatumSharedPtr = std::shared_ptr<ClusterSpecificDatum>;
+
+/**
  * Information about a given upstream cluster.
  */
 class ClusterInfo {
@@ -821,6 +827,11 @@ public:
    * @return ClusterStats& strongly named stats for this cluster.
    */
   virtual ClusterStats& stats() const PURE;
+
+  /**
+   * TODO: Comment
+   */
+  virtual ClusterSpecificDatumSharedPtr getClusterSpecificData(std::string name) const PURE;
 
   /**
    * @return the stats scope that contains all cluster stats. This can be used to produce dynamic

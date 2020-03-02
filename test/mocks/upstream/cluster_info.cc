@@ -10,6 +10,9 @@
 #include "common/network/raw_buffer_socket.h"
 #include "common/upstream/upstream_impl.h"
 
+#include "extensions/upstream_specific_data/well_known_names.h"
+#include "extensions/upstream_specific_data/redis_command_stats.h"
+
 using testing::_;
 using testing::Invoke;
 using testing::Return;
@@ -45,7 +48,9 @@ MockClusterInfo::MockClusterInfo()
           ClusterInfoImpl::generateCircuitBreakersStats(stats_store_, "default", true)),
       resource_manager_(new Upstream::ResourceManagerImpl(
           runtime_, "fake_key", 1, 1024, 1024, 1, std::numeric_limits<uint64_t>::max(),
-          circuit_breakers_stats_, absl::nullopt, absl::nullopt)) {
+          circuit_breakers_stats_, absl::nullopt, absl::nullopt)),
+      cluster_specific_datum_map_(
+          ClusterInfoImpl::generateClusterSpecificData(Protobuf::RepeatedPtrField<std::string>(), stats_store_)) {
   ON_CALL(*this, connectTimeout()).WillByDefault(Return(std::chrono::milliseconds(1)));
   ON_CALL(*this, idleTimeout()).WillByDefault(Return(absl::optional<std::chrono::milliseconds>()));
   ON_CALL(*this, name()).WillByDefault(ReturnRef(name_));
@@ -92,6 +97,21 @@ MockClusterInfo::MockClusterInfo()
       }));
   ON_CALL(*this, clusterType()).WillByDefault(ReturnRef(cluster_type_));
   ON_CALL(*this, upstreamHttpProtocol(_)).WillByDefault(Return(Http::Protocol::Http11));
+
+  // TODO: Function needs an argument, and needs to return appropriate function
+  ON_CALL(*this, getClusterSpecificData(_))
+      .WillByDefault(Invoke(
+          [this](std::string name) -> ClusterSpecificDatumSharedPtr {
+                std::map<const std::string, ClusterSpecificDatumSharedPtr>::iterator iter = cluster_specific_datum_map_.find(name);
+                if (iter != cluster_specific_datum_map_.end()) {
+                    ClusterSpecificDatumSharedPtr datum_ptr = iter->second;
+                    if (name == Extensions::UpstreamSpecificData::UpstreamSpecificDataNames::get().RedisCommandStats) {
+                        return datum_ptr;
+                    }
+                }
+
+                return nullptr;
+          }));
 }
 
 MockClusterInfo::~MockClusterInfo() = default;

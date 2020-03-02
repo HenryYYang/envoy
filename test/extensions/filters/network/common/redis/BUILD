@@ -52,6 +52,8 @@ envoy_cc_test(
         "//source/common/network:utility_lib",
         "//source/common/upstream:upstream_includes",
         "//source/common/upstream:upstream_lib",
+        "//source/extensions/upstream_specific_data:well_known_names",
+        "//source/extensions/upstream_specific_data:redis_command_stats_lib",
         "//source/extensions/filters/network/common/redis:client_lib",
         "//test/mocks/network:network_mocks",
         "//test/mocks/thread_local:thread_local_mocks",

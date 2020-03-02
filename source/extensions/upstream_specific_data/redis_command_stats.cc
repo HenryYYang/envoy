@@ -1,4 +1,4 @@
-#include "extensions/filters/network/common/redis/redis_command_stats.h"
+#include "extensions/upstream_specific_data/redis_command_stats.h"
 
 #include "common/stats/timespan_impl.h"
 
@@ -6,12 +6,11 @@
 
 namespace Envoy {
 namespace Extensions {
-namespace NetworkFilters {
-namespace Common {
-namespace Redis {
+namespace UpstreamSpecificData {
 
-RedisCommandStats::RedisCommandStats(Stats::SymbolTable& symbol_table, const std::string& prefix)
-    : symbol_table_(symbol_table), stat_name_set_(symbol_table_.makeSet("Redis")),
+// TODO: Pass scope into constructor so we can use it to create timers
+RedisCommandStats::RedisCommandStats(Stats::Scope& scope, const std::string& prefix)
+    : scope_(scope), symbol_table_(scope_.symbolTable()), stat_name_set_(symbol_table_.makeSet("Redis")),
       prefix_(stat_name_set_->add(prefix)),
       upstream_rq_time_(stat_name_set_->add("upstream_rq_time")),
       latency_(stat_name_set_->add("latency")), total_(stat_name_set_->add("total")),
@@ -32,72 +31,64 @@ RedisCommandStats::RedisCommandStats(Stats::SymbolTable& symbol_table, const std
       Extensions::NetworkFilters::Common::Redis::SupportedCommands::mset());
 }
 
-Stats::Counter& RedisCommandStats::counter(Stats::Scope& scope,
-                                           const Stats::StatNameVec& stat_names) {
+Stats::Counter& RedisCommandStats::counter(const Stats::StatNameVec& stat_names) {
   const Stats::SymbolTable::StoragePtr storage_ptr = symbol_table_.join(stat_names);
   Stats::StatName full_stat_name = Stats::StatName(storage_ptr.get());
-  return scope.counterFromStatName(full_stat_name);
+  return scope_.counterFromStatName(full_stat_name);
 }
 
-Stats::Histogram& RedisCommandStats::histogram(Stats::Scope& scope,
-                                               const Stats::StatNameVec& stat_names,
+Stats::Histogram& RedisCommandStats::histogram(const Stats::StatNameVec& stat_names,
                                                Stats::Histogram::Unit unit) {
   const Stats::SymbolTable::StoragePtr storage_ptr = symbol_table_.join(stat_names);
   Stats::StatName full_stat_name = Stats::StatName(storage_ptr.get());
-  return scope.histogramFromStatName(full_stat_name, unit);
+  return scope_.histogramFromStatName(full_stat_name, unit);
 }
 
-Stats::TimespanPtr RedisCommandStats::createCommandTimer(Stats::Scope& scope,
-                                                         Stats::StatName command,
-                                                         Envoy::TimeSource& time_source) {
+Stats::TimespanPtr RedisCommandStats::createCommandTimer(Stats::StatName command, Envoy::TimeSource& time_source) {
   return std::make_unique<Stats::HistogramCompletableTimespanImpl>(
-      histogram(scope, {prefix_, command, latency_}, Stats::Histogram::Unit::Microseconds),
+      histogram({prefix_, command, latency_}, Stats::Histogram::Unit::Microseconds),
       time_source);
 }
 
-Stats::TimespanPtr RedisCommandStats::createAggregateTimer(Stats::Scope& scope,
-                                                           Envoy::TimeSource& time_source) {
+Stats::TimespanPtr RedisCommandStats::createAggregateTimer(Envoy::TimeSource& time_source) {
   return std::make_unique<Stats::HistogramCompletableTimespanImpl>(
-      histogram(scope, {prefix_, upstream_rq_time_}, Stats::Histogram::Unit::Microseconds),
+      histogram({prefix_, upstream_rq_time_}, Stats::Histogram::Unit::Microseconds),
       time_source);
 }
 
-Stats::StatName RedisCommandStats::getCommandFromRequest(const RespValue& request) {
+Stats::StatName RedisCommandStats::getCommandFromRequest(const NetworkFilters::Common::Redis::RespValue& request) {
   // Get command from RespValue
   switch (request.type()) {
-  case RespType::Array:
+  case NetworkFilters::Common::Redis::RespType::Array:
     return getCommandFromRequest(request.asArray().front());
-  case RespType::CompositeArray:
+  case NetworkFilters::Common::Redis::RespType::CompositeArray:
     return getCommandFromRequest(*request.asCompositeArray().command());
-  case RespType::Null:
+  case NetworkFilters::Common::Redis::RespType::Null:
     return null_metric_;
-  case RespType::BulkString:
-  case RespType::SimpleString: {
+  case NetworkFilters::Common::Redis::RespType::BulkString:
+  case NetworkFilters::Common::Redis::RespType::SimpleString: {
     std::string to_lower_command = absl::AsciiStrToLower(request.asString());
     return stat_name_set_->getBuiltin(to_lower_command, unknown_metric_);
   }
-  case RespType::Integer:
-  case RespType::Error:
+  case NetworkFilters::Common::Redis::RespType::Integer:
+  case NetworkFilters::Common::Redis::RespType::Error:
   default:
     return unknown_metric_;
   }
 }
 
-void RedisCommandStats::updateStatsTotal(Stats::Scope& scope, Stats::StatName command) {
-  counter(scope, {prefix_, command, total_}).inc();
+void RedisCommandStats::updateStatsTotal(Stats::StatName command) {
+  counter({prefix_, command, total_}).inc();
 }
 
-void RedisCommandStats::updateStats(Stats::Scope& scope, Stats::StatName command,
-                                    const bool success) {
+void RedisCommandStats::updateStats(Stats::StatName command, const bool success) {
   if (success) {
-    counter(scope, {prefix_, command, success_}).inc();
+    counter({prefix_, command, success_}).inc();
   } else {
-    counter(scope, {prefix_, command, failure_}).inc();
+    counter({prefix_, command, failure_}).inc();
   }
 }
 
-} // namespace Redis
-} // namespace Common
-} // namespace NetworkFilters
+} // namespace UpstreamSpecificData
 } // namespace Extensions
 } // namespace Envoy

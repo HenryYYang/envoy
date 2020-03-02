@@ -2,6 +2,9 @@
 
 #include "envoy/extensions/filters/network/redis_proxy/v3/redis_proxy.pb.h"
 
+#include "extensions/upstream_specific_data/well_known_names.h"
+#include "extensions/upstream_specific_data/redis_command_stats.h"
+
 namespace Envoy {
 namespace Extensions {
 namespace NetworkFilters {
@@ -56,10 +59,9 @@ ConfigImpl::ConfigImpl(
 ClientPtr ClientImpl::create(Upstream::HostConstSharedPtr host, Event::Dispatcher& dispatcher,
                              EncoderPtr&& encoder, DecoderFactory& decoder_factory,
                              const Config& config,
-                             const RedisCommandStatsSharedPtr& redis_command_stats,
                              Stats::Scope& scope) {
   auto client = std::make_unique<ClientImpl>(host, dispatcher, std::move(encoder), decoder_factory,
-                                             config, redis_command_stats, scope);
+                                             config, scope);
   client->connection_ = host->createConnection(dispatcher, nullptr, nullptr).connection_;
   client->connection_->addConnectionCallbacks(*client);
   client->connection_->addReadFilter(Network::ReadFilterSharedPtr{new UpstreamReadFilter(*client)});
@@ -70,13 +72,12 @@ ClientPtr ClientImpl::create(Upstream::HostConstSharedPtr host, Event::Dispatche
 
 ClientImpl::ClientImpl(Upstream::HostConstSharedPtr host, Event::Dispatcher& dispatcher,
                        EncoderPtr&& encoder, DecoderFactory& decoder_factory, const Config& config,
-                       const RedisCommandStatsSharedPtr& redis_command_stats, Stats::Scope& scope)
+                       Stats::Scope& scope)
     : host_(host), encoder_(std::move(encoder)), decoder_(decoder_factory.create(*this)),
       config_(config),
       connect_or_op_timer_(dispatcher.createTimer([this]() { onConnectOrOpTimeout(); })),
       flush_timer_(dispatcher.createTimer([this]() { flushBufferAndResetTimer(); })),
-      time_source_(dispatcher.timeSource()), redis_command_stats_(redis_command_stats),
-      scope_(scope) {
+      time_source_(dispatcher.timeSource()), scope_(scope) {
   host->cluster().stats().upstream_cx_total_.inc();
   host->stats().cx_total_.inc();
   host->cluster().stats().upstream_cx_active_.inc();
@@ -105,14 +106,15 @@ PoolRequest* ClientImpl::makeRequest(const RespValue& request, ClientCallbacks& 
 
   const bool empty_buffer = encoder_buffer_.length() == 0;
 
-  Stats::StatName command;
+  absl::optional<Stats::StatName> command;
   if (config_.enableCommandStats()) {
-    // Only lowercase command and get StatName if we enable command stats
-    command = redis_command_stats_->getCommandFromRequest(request);
-    redis_command_stats_->updateStatsTotal(scope_, command);
-  } else {
-    // If disabled, we use a placeholder stat name "unused" that is not used
-    command = redis_command_stats_->getUnusedStatName();
+    std::string key = Extensions::UpstreamSpecificData::UpstreamSpecificDataNames::get().RedisCommandStats; // TODO: Make enum?
+    UpstreamSpecificData::RedisCommandStatsSharedPtr redis_command_stats = std::static_pointer_cast<UpstreamSpecificData::RedisCommandStats>(host_->cluster().getClusterSpecificData(key));
+    if (redis_command_stats != nullptr) {
+      // Only lowercase command and get StatName if we enable command stats
+      command = redis_command_stats->getCommandFromRequest(request);
+      redis_command_stats->updateStatsTotal(command.value());
+    }
   }
 
   pending_requests_.emplace_back(*this, callbacks, command);
@@ -208,12 +210,22 @@ void ClientImpl::onRespValue(RespValuePtr&& value) {
   PendingRequest& request = pending_requests_.front();
   const bool canceled = request.canceled_;
 
-  if (config_.enableCommandStats()) {
-    bool success = !canceled && (value->type() != Common::Redis::RespType::Error);
-    redis_command_stats_->updateStats(scope_, request.command_, success);
-    request.command_request_timer_->complete();
+  std::string key = Extensions::UpstreamSpecificData::UpstreamSpecificDataNames::get().RedisCommandStats; // TODO: Make enum?
+  UpstreamSpecificData::RedisCommandStatsSharedPtr redis_command_stats = std::static_pointer_cast<UpstreamSpecificData::RedisCommandStats>(host_->cluster().getClusterSpecificData(key));
+  
+  if (redis_command_stats != nullptr && request.aggregate_request_timer_.has_value()) {
+    std::cout << "-----------------" << "request.aggregate_request_timer_.value()->complete(): " << request.aggregate_request_timer_.value().get() << "\n";
+    request.aggregate_request_timer_.value()->complete();
   }
-  request.aggregate_request_timer_->complete();
+
+  if (redis_command_stats != nullptr && request.aggregate_request_timer_.has_value() && request.command_request_timer_.has_value()) {
+    if (config_.enableCommandStats() && request.command_.has_value()) {
+      bool success = !canceled && (value->type() != Common::Redis::RespType::Error);
+      redis_command_stats->updateStats(request.command_.value(), success);
+      request.command_request_timer_.value()->complete();
+      std::cout << "-----------------" << "request.command_request_timer_.value()->complete(): " << request.command_request_timer_.value().get() << "\n";
+    }
+  }
 
   ClientCallbacks& callbacks = request.callbacks_;
 
@@ -259,13 +271,22 @@ void ClientImpl::onRespValue(RespValuePtr&& value) {
 }
 
 ClientImpl::PendingRequest::PendingRequest(ClientImpl& parent, ClientCallbacks& callbacks,
-                                           Stats::StatName command)
-    : parent_(parent), callbacks_(callbacks), command_{command},
-      aggregate_request_timer_(parent_.redis_command_stats_->createAggregateTimer(
-          parent_.scope_, parent_.time_source_)) {
-  if (parent_.config_.enableCommandStats()) {
-    command_request_timer_ = parent_.redis_command_stats_->createCommandTimer(
-        parent_.scope_, command_, parent_.time_source_);
+                                           absl::optional<Stats::StatName> command)
+    : parent_(parent), callbacks_(callbacks), command_{command} {
+
+  std::string key = Extensions::UpstreamSpecificData::UpstreamSpecificDataNames::get().RedisCommandStats; // TODO: Make enum?
+  UpstreamSpecificData::RedisCommandStatsSharedPtr redis_command_stats = std::static_pointer_cast<UpstreamSpecificData::RedisCommandStats>(parent_.host_->cluster().getClusterSpecificData(key));
+
+  if (redis_command_stats != nullptr) {
+    std::cout << "-----------------" << "redis_command_stats->createAggregateTimer()" << "\n";
+    aggregate_request_timer_ = redis_command_stats->createAggregateTimer(parent_.time_source_); // Is this a good idea to have separate time source and scope?
+  }
+
+  if (redis_command_stats != nullptr && command_.has_value()) {
+    if (parent_.config_.enableCommandStats()) {
+      std::cout << "-----------------" << "redis_command_stats->createCommandTimer()" << "\n";
+      command_request_timer_ = redis_command_stats->createCommandTimer(command_.value(), parent_.time_source_);
+    }
   }
   parent.host_->cluster().stats().upstream_rq_total_.inc();
   parent.host_->stats().rq_total_.inc();
@@ -303,10 +324,9 @@ ClientFactoryImpl ClientFactoryImpl::instance_;
 
 ClientPtr ClientFactoryImpl::create(Upstream::HostConstSharedPtr host,
                                     Event::Dispatcher& dispatcher, const Config& config,
-                                    const RedisCommandStatsSharedPtr& redis_command_stats,
                                     Stats::Scope& scope, const std::string& auth_password) {
   ClientPtr client = ClientImpl::create(host, dispatcher, EncoderPtr{new EncoderImpl()},
-                                        decoder_factory_, config, redis_command_stats, scope);
+                                        decoder_factory_, config, scope);
   client->initialize(auth_password);
   return client;
 }

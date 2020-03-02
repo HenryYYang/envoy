@@ -47,6 +47,9 @@
 
 #include "extensions/transport_sockets/well_known_names.h"
 
+#include "extensions/upstream_specific_data/well_known_names.h"
+#include "extensions/upstream_specific_data/redis_command_stats.h"
+
 #include "absl/strings/str_cat.h"
 
 namespace Envoy {
@@ -597,6 +600,21 @@ ClusterTimeoutBudgetStats ClusterInfoImpl::generateTimeoutBudgetStats(Stats::Sco
   return {ALL_CLUSTER_TIMEOUT_BUDGET_STATS(POOL_HISTOGRAM(scope))};
 }
 
+std::map<const std::string, ClusterSpecificDatumSharedPtr> ClusterInfoImpl::generateClusterSpecificData(const Protobuf::RepeatedPtrField<std::string>& names, Stats::Scope& scope) {
+  std::map<const std::string, ClusterSpecificDatumSharedPtr> data;
+
+  for (std::string name : names) {
+    // Support upstream specfic data here by well-known name
+    if (name == Extensions::UpstreamSpecificData::UpstreamSpecificDataNames::get().RedisCommandStats) {
+      std::string prefix = "upstream_commands"; // TODO: Should be hardcoded into RCS/make configureable with MxN downstream/upstream
+      ClusterSpecificDatumSharedPtr datum = std::make_shared<Extensions::UpstreamSpecificData::RedisCommandStats>(scope, prefix);
+      data[name] = datum;
+    }
+  }
+
+  return data;
+}
+
 // Implements the FactoryContext interface required by network filters.
 class FactoryContextImpl : public Server::Configuration::CommonFactoryContext {
 public:
@@ -686,7 +704,8 @@ ClusterInfoImpl::ClusterInfoImpl(
                     config.cluster_type())
               : absl::nullopt),
       factory_context_(
-          std::make_unique<FactoryContextImpl>(*stats_scope_, runtime, factory_context)) {
+          std::make_unique<FactoryContextImpl>(*stats_scope_, runtime, factory_context)),
+      cluster_specific_datum_map_(generateClusterSpecificData(config.upstream_specific_data(), *stats_scope_)) {
   switch (config.lb_policy()) {
   case envoy::config::cluster::v3::Cluster::ROUND_ROBIN:
     lb_type_ = LoadBalancerType::RoundRobin;
@@ -921,6 +940,18 @@ bool ClusterInfoImpl::maintenanceMode() const {
 ResourceManager& ClusterInfoImpl::resourceManager(ResourcePriority priority) const {
   ASSERT(enumToInt(priority) < resource_managers_.managers_.size());
   return *resource_managers_.managers_[enumToInt(priority)];
+}
+
+ClusterSpecificDatumSharedPtr ClusterInfoImpl::getClusterSpecificData(std::string name) const {
+  std::map<const std::string, ClusterSpecificDatumSharedPtr>::const_iterator iter = cluster_specific_datum_map_.find(name);
+  if (iter != cluster_specific_datum_map_.end()) {
+    ClusterSpecificDatumSharedPtr datum_ptr = iter->second;
+    if (name == Extensions::UpstreamSpecificData::UpstreamSpecificDataNames::get().RedisCommandStats) {
+      return datum_ptr;
+    }
+  }
+
+  return nullptr;
 }
 
 void ClusterImplBase::initialize(std::function<void()> callback) {

@@ -126,6 +126,7 @@ public:
   MOCK_METHOD(absl::optional<std::string>, eds_service_name, (), (const));
   MOCK_METHOD(void, createNetworkFilterChain, (Network::Connection&), (const));
   MOCK_METHOD(Http::Protocol, upstreamHttpProtocol, (absl::optional<Http::Protocol>), (const));
+  MOCK_METHOD(ClusterSpecificDatumSharedPtr, getClusterSpecificData, (std::string), (const));
 
   std::string name_{"fake_cluster"};
   absl::optional<std::string> eds_service_name_;
@@ -158,6 +159,7 @@ public:
   envoy::config::cluster::v3::Cluster::CommonLbConfig lb_config_;
   envoy::config::core::v3::Metadata metadata_;
   std::unique_ptr<Envoy::Config::TypedMetadata> typed_metadata_;
+  std::map<const std::string, ClusterSpecificDatumSharedPtr> cluster_specific_datum_map_;
 };
 
 class MockIdleTimeEnabledClusterInfo : public MockClusterInfo {

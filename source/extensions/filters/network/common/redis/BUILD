@@ -48,7 +48,6 @@ envoy_cc_library(
     hdrs = ["client.h"],
     deps = [
         ":codec_lib",
-        ":redis_command_stats_lib",
         "//include/envoy/upstream:cluster_manager_interface",
     ],
 )
@@ -71,6 +70,8 @@ envoy_cc_library(
         "//source/common/protobuf:utility_lib",
         "//source/common/upstream:load_balancer_lib",
         "//source/common/upstream:upstream_lib",
+        "//source/extensions/upstream_specific_data:well_known_names",
+        "//source/extensions/upstream_specific_data:redis_command_stats_lib",
         "@envoy_api//envoy/extensions/filters/network/redis_proxy/v3:pkg_cc_proto",
     ],
 )
@@ -82,20 +83,5 @@ envoy_cc_library(
     deps = [
         ":codec_lib",
         "//source/common/common:utility_lib",
-    ],
-)
-
-envoy_cc_library(
-    name = "redis_command_stats_lib",
-    srcs = ["redis_command_stats.cc"],
-    hdrs = ["redis_command_stats.h"],
-    deps = [
-        ":codec_interface",
-        ":supported_commands_lib",
-        "//include/envoy/stats:stats_interface",
-        "//include/envoy/stats:timespan_interface",
-        "//source/common/common:utility_lib",
-        "//source/common/stats:symbol_table_lib",
-        "//source/common/stats:timespan_lib",
     ],
 )
