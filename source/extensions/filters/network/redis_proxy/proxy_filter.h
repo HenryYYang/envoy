@@ -14,6 +14,7 @@
 #include "common/buffer/buffer_impl.h"
 
 #include "extensions/filters/network/common/redis/codec.h"
+#include "extensions/filters/network/common/redis/fault.h"
 #include "extensions/filters/network/redis_proxy/command_splitter.h"
 
 namespace Envoy {
@@ -50,7 +51,7 @@ class ProxyFilterConfig {
 public:
   ProxyFilterConfig(const envoy::extensions::filters::network::redis_proxy::v3::RedisProxy& config,
                     Stats::Scope& scope, const Network::DrainDecision& drain_decision,
-                    Runtime::Loader& runtime, Api::Api& api);
+                    Runtime::Loader& runtime, Api::Api& api, Runtime::RandomGenerator& random);
 
   const Network::DrainDecision& drain_decision_;
   Runtime::Loader& runtime_;
@@ -58,6 +59,7 @@ public:
   const std::string redis_drain_close_runtime_key_{"redis.drain_close_enabled"};
   ProxyStats stats_;
   const std::string downstream_auth_password_;
+  Common::Redis::RedisFaultManager fault_manager_;
 
 private:
   static ProxyStats generateStats(const std::string& prefix, Stats::Scope& scope);
@@ -89,6 +91,9 @@ public:
 
   // Common::Redis::DecoderCallbacks
   void onRespValue(Common::Redis::RespValuePtr&& value) override;
+
+  // Fault injection
+  bool shouldAbortFault() const;
 
   bool connectionAllowed() { return connection_allowed_; }
 

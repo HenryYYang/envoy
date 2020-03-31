@@ -99,3 +99,16 @@ envoy_cc_library(
         "//source/common/stats:timespan_lib",
     ],
 )
+
+
+envoy_cc_library(
+    name = "fault_lib",
+    srcs = ["fault.cc"],
+    hdrs = ["fault.h"],
+    deps = [
+        ":codec_lib",
+        "//include/envoy/upstream:upstream_interface",
+        "@envoy_api//envoy/config/core/v3:pkg_cc_proto",
+        "@envoy_api//envoy/extensions/filters/network/redis_proxy/v3:pkg_cc_proto",
+    ],
+)

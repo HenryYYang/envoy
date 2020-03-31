@@ -19,12 +19,13 @@ namespace RedisProxy {
 ProxyFilterConfig::ProxyFilterConfig(
     const envoy::extensions::filters::network::redis_proxy::v3::RedisProxy& config,
     Stats::Scope& scope, const Network::DrainDecision& drain_decision, Runtime::Loader& runtime,
-    Api::Api& api)
+    Api::Api& api, Runtime::RandomGenerator& random)
     : drain_decision_(drain_decision), runtime_(runtime),
       stat_prefix_(fmt::format("redis.{}.", config.stat_prefix())),
       stats_(generateStats(stat_prefix_, scope)),
       downstream_auth_password_(
-          Config::DataSource::read(config.downstream_auth_password(), true, api)) {}
+          Config::DataSource::read(config.downstream_auth_password(), true, api)),
+      fault_manager_(Common::Redis::RedisFaultManager(random, runtime, config.faults())) {}
 
 ProxyStats ProxyFilterConfig::generateStats(const std::string& prefix, Stats::Scope& scope) {
   return {
@@ -34,8 +35,8 @@ ProxyStats ProxyFilterConfig::generateStats(const std::string& prefix, Stats::Sc
 ProxyFilter::ProxyFilter(Common::Redis::DecoderFactory& factory,
                          Common::Redis::EncoderPtr&& encoder, CommandSplitter::Instance& splitter,
                          ProxyFilterConfigSharedPtr config)
-    : decoder_(factory.create(*this)), encoder_(std::move(encoder)), splitter_(splitter),
-      config_(config) {
+    : decoder_(factory.create(*this)), encoder_(std::move(encoder)), 
+       splitter_(splitter), config_(config) {
   config_->stats_.downstream_cx_total_.inc();
   config_->stats_.downstream_cx_active_.inc();
   connection_allowed_ = config_->downstream_auth_password_.empty();
@@ -57,6 +58,35 @@ void ProxyFilter::initializeReadFilterCallbacks(Network::ReadFilterCallbacks& ca
 }
 
 void ProxyFilter::onRespValue(Common::Redis::RespValuePtr&& value) {
+  std::cout << "ProxyFilter::onRespValue" << std::endl;
+  
+  // Fault injection
+  std::string command = "get"; // TODO: Put RedisCommandStats::getCommandFromRequest(...) into utils or resp something
+
+  absl::optional<std::pair<Common::Redis::FaultType, std::chrono::milliseconds>> fault = config_->fault_manager_.get_fault_for_command(command);
+  if (fault.has_value()) {
+
+    if (fault.value().first == Common::Redis::FaultType::Delay) {
+      std::cout << "\t" << "--- FAULT INJECTION - [DELAY] ---" << std::endl;
+      return;
+    } else if (fault.value().first == Common::Redis::FaultType::Error) {
+      std::cout << "\t" << "--- FAULT INJECTION - [ERROR] ---" << std::endl;
+      // TODO: Downstream stats
+      Common::Redis::RespValuePtr response{new Common::Redis::RespValue()};
+      response->type(Common::Redis::RespType::Error);
+      response->asString() = "Fault Injection: Abort";
+      connection_allowed_ = true;
+      encoder_->encode(*response, encoder_buffer_);
+      if (encoder_buffer_.length() > 0) {
+        callbacks_->connection().write(encoder_buffer_, false);
+      }
+      return;
+    } else {
+      std::cout << "\t" << "--- FAULT INJECTION - [UNKNOWN] ---" << std::endl;
+      NOT_REACHED_GCOVR_EXCL_LINE;
+    }
+  }
+
   pending_requests_.emplace_back(*this);
   PendingRequest& request = pending_requests_.back();
   CommandSplitter::SplitRequestPtr split = splitter_.makeRequest(std::move(value), request);
