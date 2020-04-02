@@ -79,19 +79,19 @@ namespace Redis {
 
     // TODO: Check if this is ok
   uint64_t RedisFaultManager::calculate_fault_injection_percentage(envoy::extensions::filters::network::redis_proxy::v3::RedisProxy_RedisFault& fault) {
-      if (fault.has_runtime_fraction()) {
-        if (fault.runtime_fraction().has_default_value()) {
-          envoy::type::v3::FractionalPercent default_value = fault.runtime_fraction().default_value();
+      if (fault.has_fault_enabled()) {
+        if (fault.fault_enabled().has_default_value()) {
+          envoy::type::v3::FractionalPercent default_value = fault.fault_enabled().default_value();
           if (default_value.denominator() == envoy::type::v3::FractionalPercent::HUNDRED) {
-            return runtime_.snapshot().getInteger(fault.runtime_fraction().runtime_key(), default_value.numerator());
+            return runtime_.snapshot().getInteger(fault.fault_enabled().runtime_key(), default_value.numerator());
           } else {
             int denominator = ProtobufPercentHelper::fractionalPercentDenominatorToInt(default_value.denominator());
             int adjusted_numerator = (default_value.numerator() * 100) / denominator;
-            return runtime_.snapshot().getInteger(fault.runtime_fraction().runtime_key(), adjusted_numerator);
+            return runtime_.snapshot().getInteger(fault.fault_enabled().runtime_key(), adjusted_numerator);
           }
         } else {
           // Default value is zero if not set
-          return runtime_.snapshot().getInteger(fault.runtime_fraction().runtime_key(), 0);
+          return runtime_.snapshot().getInteger(fault.fault_enabled().runtime_key(), 0);
         }
       } else {
         // Default action- no fault injection

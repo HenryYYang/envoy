@@ -208,10 +208,11 @@ message RedisProxy {
 
     // Percentage of requests fault applies to.
     // TODO: How do we make this a required field
-    config.core.v3.RuntimeFractionalPercent runtime_fraction = 2;
+    config.core.v3.RuntimeFractionalPercent fault_enabled = 2;
 
     // Configureable delay for all faults. If not set, defaults to zero
     google.protobuf.Duration delay = 3;
+    // TODO: Make this runtime-tuneable? Do we care- most delays aren't tuneable.
 
     // Commands fault is restricted to, if any.
     // TODO: Make this optional

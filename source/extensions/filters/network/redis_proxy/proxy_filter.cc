@@ -19,13 +19,14 @@ namespace RedisProxy {
 ProxyFilterConfig::ProxyFilterConfig(
     const envoy::extensions::filters::network::redis_proxy::v3::RedisProxy& config,
     Stats::Scope& scope, const Network::DrainDecision& drain_decision, Runtime::Loader& runtime,
-    Api::Api& api, Runtime::RandomGenerator& random)
+    Api::Api& api, Runtime::RandomGenerator& random, Event::Dispatcher& dispatcher)
     : drain_decision_(drain_decision), runtime_(runtime),
       stat_prefix_(fmt::format("redis.{}.", config.stat_prefix())),
       stats_(generateStats(stat_prefix_, scope)),
       downstream_auth_password_(
           Config::DataSource::read(config.downstream_auth_password(), true, api)),
-      fault_manager_(Common::Redis::RedisFaultManager(random, runtime, config.faults())) {}
+      fault_manager_(Common::Redis::RedisFaultManager(random, runtime, config.faults())),
+      dispatcher_(dispatcher) {}
 
 ProxyStats ProxyFilterConfig::generateStats(const std::string& prefix, Stats::Scope& scope) {
   return {
@@ -59,42 +60,71 @@ void ProxyFilter::initializeReadFilterCallbacks(Network::ReadFilterCallbacks& ca
 
 void ProxyFilter::onRespValue(Common::Redis::RespValuePtr&& value) {
   std::cout << "ProxyFilter::onRespValue" << std::endl;
-  
-  // Fault injection
-  std::string command = "get"; // TODO: Put RedisCommandStats::getCommandFromRequest(...) into utils or resp something
 
-  absl::optional<std::pair<Common::Redis::FaultType, std::chrono::milliseconds>> fault = config_->fault_manager_.get_fault_for_command(command);
-  if (fault.has_value()) {
-
-    if (fault.value().first == Common::Redis::FaultType::Delay) {
-      std::cout << "\t" << "--- FAULT INJECTION - [DELAY] ---" << std::endl;
-      return;
-    } else if (fault.value().first == Common::Redis::FaultType::Error) {
-      std::cout << "\t" << "--- FAULT INJECTION - [ERROR] ---" << std::endl;
-      // TODO: Downstream stats
-      Common::Redis::RespValuePtr response{new Common::Redis::RespValue()};
-      response->type(Common::Redis::RespType::Error);
-      response->asString() = "Fault Injection: Abort";
-      connection_allowed_ = true;
-      encoder_->encode(*response, encoder_buffer_);
-      if (encoder_buffer_.length() > 0) {
-        callbacks_->connection().write(encoder_buffer_, false);
-      }
-      return;
-    } else {
-      std::cout << "\t" << "--- FAULT INJECTION - [UNKNOWN] ---" << std::endl;
-      NOT_REACHED_GCOVR_EXCL_LINE;
-    }
-  }
-
+  // NOTE: Don't create pending request until we actually need the request.
   pending_requests_.emplace_back(*this);
   PendingRequest& request = pending_requests_.back();
+
+  // Fault injection
+  std::string command = "get"; // TODO: Put RedisCommandStats::getCommandFromRequest(...) into utils or resp something
+  absl::optional<std::pair<Common::Redis::FaultType, std::chrono::milliseconds>> fault = config_->fault_manager_.get_fault_for_command(command);
+  if (fault.has_value()) {
+    handleFault(fault.value(), request, std::move(value), false);
+  } else {
+    onRespValuePostFault(request, std::move(value));
+  }
+}
+
+void ProxyFilter::onRespValuePostFault(PendingRequest& request, Common::Redis::RespValuePtr&& value) {
   CommandSplitter::SplitRequestPtr split = splitter_.makeRequest(std::move(value), request);
   if (split) {
     // The splitter can immediately respond and destroy the pending request. Only store the handle
     // if the request is still alive.
     request.request_handle_ = std::move(split);
   }
+}
+
+void ProxyFilter::handleFault(std::pair<Common::Redis::FaultType, std::chrono::milliseconds> fault, PendingRequest& request, Common::Redis::RespValuePtr&& value, bool delay_performed) {
+  // If delay has not been performed...
+  if (fault.second > std::chrono::milliseconds(0) && !delay_performed) {
+    // TODO:
+    // Fire off timer to calll handleFault again, this time with delay_performed set to true.
+    // This isn't working meh.
+    // Event::Timer delay_timer = config_->dispatcher_.createTimer([this, fault, std::move(request), value]() -> void { handleFault(fault, std::move(request), std::move(value), true); });
+    // Event::Timer delay_timer = config_->dispatcher_.createTimer([request_arg = std::move(request), value_arg = std::move(value)] {
+    //   handleFault(fault, std::move(request_arg), std::move(value_arg), true);
+    // });
+    // delay_timer.enableTimer();
+    // TODO: Need to hold on to timer so that it can be cancelled if client connection is closed.
+
+    std::cout << "\t" << "--- FAULT INJECTION - [DELAY STARTED] ---" << std::endl;
+  } else {
+    if (delay_performed) {
+      std::cout << "\t" << "--- FAULT INJECTION - [DELAY COMPLETE] ---" << std::endl;
+      // TODO: Clean up delay timer
+    }
+
+    switch (fault.first) {
+      case Common::Redis::FaultType::Delay:
+        onRespValuePostFault(request, std::move(value));
+        break;
+      case Common::Redis::FaultType::Error:
+        onErrorFault(request);
+        break;
+      default:
+        NOT_REACHED_GCOVR_EXCL_LINE;
+        break;
+    }
+  }
+}
+
+void ProxyFilter::onErrorFault(PendingRequest& request) {
+  std::cout << "\t" << "--- FAULT INJECTION - [ERROR] ---" << std::endl;
+  Common::Redis::RespValuePtr response{new Common::Redis::RespValue()};
+  response->type(Common::Redis::RespType::Error);
+  response->asString() = "Fault Injection: Abort";
+  request.onResponse(std::move(response));
+  request.request_handle_ = nullptr; // just like ping
 }
 
 void ProxyFilter::onEvent(Network::ConnectionEvent event) {
@@ -107,6 +137,7 @@ void ProxyFilter::onEvent(Network::ConnectionEvent event) {
       pending_requests_.pop_front();
     }
   }
+  // TODO: Clean up delay timer
 }
 
 void ProxyFilter::onAuth(PendingRequest& request, const std::string& password) {

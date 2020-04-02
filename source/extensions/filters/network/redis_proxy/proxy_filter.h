@@ -51,7 +51,8 @@ class ProxyFilterConfig {
 public:
   ProxyFilterConfig(const envoy::extensions::filters::network::redis_proxy::v3::RedisProxy& config,
                     Stats::Scope& scope, const Network::DrainDecision& drain_decision,
-                    Runtime::Loader& runtime, Api::Api& api, Runtime::RandomGenerator& random);
+                    Runtime::Loader& runtime, Api::Api& api, Runtime::RandomGenerator& random,
+                    Event::Dispatcher& dispatcher);
 
   const Network::DrainDecision& drain_decision_;
   Runtime::Loader& runtime_;
@@ -60,6 +61,7 @@ public:
   ProxyStats stats_;
   const std::string downstream_auth_password_;
   Common::Redis::RedisFaultManager fault_manager_;
+  Event::Dispatcher& dispatcher_;
 
 private:
   static ProxyStats generateStats(const std::string& prefix, Stats::Scope& scope);
@@ -116,6 +118,10 @@ private:
 
   void onAuth(PendingRequest& request, const std::string& password);
   void onResponse(PendingRequest& request, Common::Redis::RespValuePtr&& value);
+
+  void handleFault(std::pair<Common::Redis::FaultType, std::chrono::milliseconds> fault, PendingRequest& request, Common::Redis::RespValuePtr&& value, bool delay_performed);
+  void onRespValuePostFault(PendingRequest& request, Common::Redis::RespValuePtr&& value);
+  void onErrorFault(PendingRequest& request);
 
   Common::Redis::DecoderPtr decoder_;
   Common::Redis::EncoderPtr encoder_;
