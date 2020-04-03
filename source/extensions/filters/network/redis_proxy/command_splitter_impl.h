@@ -15,6 +15,7 @@
 #include "common/stats/timespan_impl.h"
 
 #include "extensions/filters/network/common/redis/client_impl.h"
+#include "extensions/filters/network/common/redis/fault.h"
 #include "extensions/filters/network/common/redis/utility.h"
 #include "extensions/filters/network/redis_proxy/command_splitter.h"
 #include "extensions/filters/network/redis_proxy/conn_pool_impl.h"
@@ -269,7 +270,7 @@ struct InstanceStats {
 class InstanceImpl : public Instance, Logger::Loggable<Logger::Id::redis> {
 public:
   InstanceImpl(RouterPtr&& router, Stats::Scope& scope, const std::string& stat_prefix,
-               TimeSource& time_source, bool latency_in_micros);
+               TimeSource& time_source, bool latency_in_micros, Event::Dispatcher& dispatcher, Common::Redis::RedisFaultManager fault_manager);
 
   // RedisProxy::CommandSplitter::Instance
   SplitRequestPtr makeRequest(Common::Redis::RespValuePtr&& request,
@@ -296,6 +297,8 @@ private:
   TrieLookupTable<HandlerDataPtr> handler_lookup_table_;
   InstanceStats stats_;
   TimeSource& time_source_;
+  Event::Dispatcher& dispatcher_;
+  Common::Redis::RedisFaultManager fault_manager_;
 };
 
 } // namespace CommandSplitter

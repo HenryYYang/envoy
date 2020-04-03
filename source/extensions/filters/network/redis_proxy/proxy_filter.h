@@ -14,7 +14,6 @@
 #include "common/buffer/buffer_impl.h"
 
 #include "extensions/filters/network/common/redis/codec.h"
-#include "extensions/filters/network/common/redis/fault.h"
 #include "extensions/filters/network/redis_proxy/command_splitter.h"
 
 namespace Envoy {
@@ -51,8 +50,7 @@ class ProxyFilterConfig {
 public:
   ProxyFilterConfig(const envoy::extensions::filters::network::redis_proxy::v3::RedisProxy& config,
                     Stats::Scope& scope, const Network::DrainDecision& drain_decision,
-                    Runtime::Loader& runtime, Api::Api& api, Runtime::RandomGenerator& random,
-                    Event::Dispatcher& dispatcher);
+                    Runtime::Loader& runtime, Api::Api& api);
 
   const Network::DrainDecision& drain_decision_;
   Runtime::Loader& runtime_;
@@ -60,8 +58,6 @@ public:
   const std::string redis_drain_close_runtime_key_{"redis.drain_close_enabled"};
   ProxyStats stats_;
   const std::string downstream_auth_password_;
-  Common::Redis::RedisFaultManager fault_manager_;
-  Event::Dispatcher& dispatcher_;
 
 private:
   static ProxyStats generateStats(const std::string& prefix, Stats::Scope& scope);
@@ -94,9 +90,6 @@ public:
   // Common::Redis::DecoderCallbacks
   void onRespValue(Common::Redis::RespValuePtr&& value) override;
 
-  // Fault injection
-  bool shouldAbortFault() const;
-
   bool connectionAllowed() { return connection_allowed_; }
 
 private:
@@ -118,10 +111,6 @@ private:
 
   void onAuth(PendingRequest& request, const std::string& password);
   void onResponse(PendingRequest& request, Common::Redis::RespValuePtr&& value);
-
-  void handleFault(std::pair<Common::Redis::FaultType, std::chrono::milliseconds> fault, PendingRequest& request, Common::Redis::RespValuePtr&& value, bool delay_performed);
-  void onRespValuePostFault(PendingRequest& request, Common::Redis::RespValuePtr&& value);
-  void onErrorFault(PendingRequest& request);
 
   Common::Redis::DecoderPtr decoder_;
   Common::Redis::EncoderPtr encoder_;

@@ -392,12 +392,13 @@ void SplitKeysSumResultRequest::onChildResponse(Common::Redis::RespValuePtr&& va
 }
 
 InstanceImpl::InstanceImpl(RouterPtr&& router, Stats::Scope& scope, const std::string& stat_prefix,
-                           TimeSource& time_source, bool latency_in_micros)
+                           TimeSource& time_source, bool latency_in_micros, 
+                           Event::Dispatcher& dispatcher, Common::Redis::RedisFaultManager fault_manager)
     : router_(std::move(router)), simple_command_handler_(*router_),
       eval_command_handler_(*router_), mget_handler_(*router_), mset_handler_(*router_),
       split_keys_sum_result_handler_(*router_),
       stats_{ALL_COMMAND_SPLITTER_STATS(POOL_COUNTER_PREFIX(scope, stat_prefix + "splitter."))},
-      time_source_(time_source) {
+      time_source_(time_source), dispatcher_(dispatcher), fault_manager_(fault_manager) {
   for (const std::string& command : Common::Redis::SupportedCommands::simpleCommands()) {
     addHandler(scope, stat_prefix, command, latency_in_micros, simple_command_handler_);
   }
@@ -470,6 +471,25 @@ SplitRequestPtr InstanceImpl::makeRequest(Common::Redis::RespValuePtr&& request,
         fmt::format("unsupported command '{}'", request->asArray()[0].asString())));
     return nullptr;
   }
+
+  // FAULT INJECTION GOES HERE
+  dispatcher_.timeSource();
+  absl::optional<std::pair<Common::Redis::FaultType, std::chrono::milliseconds>> fault = fault_manager_.get_fault_for_command(to_lower_string);
+  if (fault.has_value()) {
+    switch (fault.value().first) {
+      case Common::Redis::FaultType::Delay:
+        // TODO
+        break;
+      case Common::Redis::FaultType::Error:
+        // TODO
+        break;
+      default:
+        NOT_REACHED_GCOVR_EXCL_LINE;
+        break;
+    }
+    // return
+  }
+
   ENVOY_LOG(debug, "redis: splitting '{}'", request->toString());
   handler->command_stats_.total_.inc();
   SplitRequestPtr request_ptr = handler->handler_.get().startRequest(
