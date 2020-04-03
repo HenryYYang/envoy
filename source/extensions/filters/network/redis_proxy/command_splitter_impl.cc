@@ -481,7 +481,8 @@ SplitRequestPtr InstanceImpl::makeRequest(Common::Redis::RespValuePtr&& request,
         // TODO
         break;
       case Common::Redis::FaultType::Error:
-        // TODO
+        // SplitRequestPtr request_ptr = error_fault_hanlder_.
+        // return request_ptr;
         break;
       default:
         NOT_REACHED_GCOVR_EXCL_LINE;
