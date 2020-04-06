@@ -111,6 +111,23 @@ protected:
 };
 
 /**
+ * ErrorFaultRequest returns an error
+ */
+class ErrorFaultRequest : public SingleServerRequest {
+public:
+  static SplitRequestPtr create(Router& router, Common::Redis::RespValuePtr&& incoming_request,
+                                SplitCallbacks& callbacks, CommandStats& command_stats,
+                                TimeSource& time_source);
+  
+  // void onResponse(Common::Redis::RespValuePtr&& response) override;
+  // void cancel() override;
+
+private:
+  ErrorFaultRequest(SplitCallbacks& callbacks, CommandStats& command_stats, TimeSource& time_source)
+      : SingleServerRequest(callbacks, command_stats, time_source) {}
+};
+
+/**
  * SimpleRequest hashes the first argument as the key.
  */
 class SimpleRequest : public SingleServerRequest {
@@ -294,6 +311,7 @@ private:
   CommandHandlerFactory<MGETRequest> mget_handler_;
   CommandHandlerFactory<MSETRequest> mset_handler_;
   CommandHandlerFactory<SplitKeysSumResultRequest> split_keys_sum_result_handler_;
+  CommandHandlerFactory<ErrorFaultRequest> error_fault_handler_;
   TrieLookupTable<HandlerDataPtr> handler_lookup_table_;
   InstanceStats stats_;
   TimeSource& time_source_;

@@ -124,6 +124,29 @@ SplitRequestPtr SimpleRequest::create(Router& router,
   return request_ptr;
 }
 
+SplitRequestPtr ErrorFaultRequest::create(Router& router,
+                                      Common::Redis::RespValuePtr&& incoming_request,
+                                      SplitCallbacks& callbacks, CommandStats& command_stats,
+                                      TimeSource& time_source) {
+  std::unique_ptr<ErrorFaultRequest> request_ptr{
+      new ErrorFaultRequest(callbacks, command_stats, time_source)};
+
+  const auto route = router.upstreamPool(incoming_request->asArray()[1].asString());
+  if (route) {
+    std::cout << "\t" << "--- FAULT INJECTION - [ERROR] ---" << std::endl;
+    request_ptr->onResponse(Common::Redis::Utility::makeError("Fault Injection: Abort"));
+    // Need a handle?
+  }
+
+  // if (!request_ptr->handle_) {
+  //   callbacks.onResponse(Common::Redis::Utility::makeError(Response::get().NoUpstreamHost));
+  //   return nullptr;
+  // }
+
+  return request_ptr;
+}
+
+
 SplitRequestPtr EvalRequest::create(Router& router, Common::Redis::RespValuePtr&& incoming_request,
                                     SplitCallbacks& callbacks, CommandStats& command_stats,
                                     TimeSource& time_source) {
@@ -396,7 +419,7 @@ InstanceImpl::InstanceImpl(RouterPtr&& router, Stats::Scope& scope, const std::s
                            Event::Dispatcher& dispatcher, Common::Redis::RedisFaultManager fault_manager)
     : router_(std::move(router)), simple_command_handler_(*router_),
       eval_command_handler_(*router_), mget_handler_(*router_), mset_handler_(*router_),
-      split_keys_sum_result_handler_(*router_),
+      split_keys_sum_result_handler_(*router_), error_fault_handler_(*router_),
       stats_{ALL_COMMAND_SPLITTER_STATS(POOL_COUNTER_PREFIX(scope, stat_prefix + "splitter."))},
       time_source_(time_source), dispatcher_(dispatcher), fault_manager_(fault_manager) {
   for (const std::string& command : Common::Redis::SupportedCommands::simpleCommands()) {
@@ -473,22 +496,12 @@ SplitRequestPtr InstanceImpl::makeRequest(Common::Redis::RespValuePtr&& request,
   }
 
   // FAULT INJECTION GOES HERE
-  dispatcher_.timeSource();
+  dispatcher_.timeSource(); // TODO: Use for delay fault
   absl::optional<std::pair<Common::Redis::FaultType, std::chrono::milliseconds>> fault = fault_manager_.get_fault_for_command(to_lower_string);
   if (fault.has_value()) {
-    switch (fault.value().first) {
-      case Common::Redis::FaultType::Delay:
-        // TODO
-        break;
-      case Common::Redis::FaultType::Error:
-        // SplitRequestPtr request_ptr = error_fault_hanlder_.
-        // return request_ptr;
-        break;
-      default:
-        NOT_REACHED_GCOVR_EXCL_LINE;
-        break;
-    }
-    // return
+    SplitRequestPtr request_ptr = error_fault_handler_.startRequest(
+            std::move(request), callbacks, handler->command_stats_, time_source_);
+        return request_ptr;
   }
 
   ENVOY_LOG(debug, "redis: splitting '{}'", request->toString());
