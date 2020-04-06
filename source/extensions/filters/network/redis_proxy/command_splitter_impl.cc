@@ -137,14 +137,67 @@ SplitRequestPtr ErrorFaultRequest::create(Router& router,
     request_ptr->onResponse(Common::Redis::Utility::makeError("Fault Injection: Abort"));
     // Need a handle?
   }
+  
+  return request_ptr;
+}
 
-  // if (!request_ptr->handle_) {
-  //   callbacks.onResponse(Common::Redis::Utility::makeError(Response::get().NoUpstreamHost));
-  //   return nullptr;
-  // }
+
+
+
+
+SplitRequestPtr DelayFaultRequest::create(Common::Redis::RespValuePtr&&,
+                                      SplitCallbacks&, CommandStats& command_stats,
+                                      TimeSource& time_source, Event::Dispatcher& dispatcher, 
+                                      std::chrono::milliseconds delay) {
+  std::unique_ptr<DelayFaultRequest> request_ptr{
+      new DelayFaultRequest(command_stats, time_source, dispatcher, delay)};
+
+  // The wrapped request will set its callbacks to the DelayFaultRequest, so that the DelayFaultRequest
+  // can intercept the response and store it and then fire off the onResponse() callback to the ProxyFilter
+  // when the delay has completed.
 
   return request_ptr;
 }
+
+void DelayFaultRequest::createWrappedRequest(HandlerDataPtr handler, 
+                            Common::Redis::RespValuePtr&& incoming_request,
+                            TimeSource& time_source) {
+  wrapped_request_ptr_ = handler->handler_.get().startRequest(
+    std::move(incoming_request), *this, handler->command_stats_, time_source);
+}
+
+void DelayFaultRequest::onResponse(Common::Redis::RespValuePtr&& response) {
+  std::cout << "\t" << "DelayFaultRequest::onResponse()" << std::endl;
+  // Fire a timer to delay the wrapped request's response
+  // auto lambda = [this, response = std::move(response)]() mutable {
+  //    onResponse(std::move(response));
+  // };
+
+  // delay_timer_ = dispatcher_.createTimer(std::move(lambda));
+  
+  
+  // HACK: We'll just return an abort for now until we figure out how to return a wrapped response.
+  response->type();
+  delay_timer_ = dispatcher_.createTimer([this]()-> void {
+    onResponse(Common::Redis::Utility::makeError("Fault Injection: Abort"));
+  });
+  delay_timer_->enableTimer(delay_);
+}
+
+void DelayFaultRequest::cancel() {
+  std::cout << "\t" << "DelayFaultRequest::cancel()" << std::endl;
+  delay_timer_->disableTimer();
+  delay_timer_ = nullptr;
+}
+
+
+
+
+
+
+
+
+
 
 
 SplitRequestPtr EvalRequest::create(Router& router, Common::Redis::RespValuePtr&& incoming_request,
@@ -499,9 +552,28 @@ SplitRequestPtr InstanceImpl::makeRequest(Common::Redis::RespValuePtr&& request,
   dispatcher_.timeSource(); // TODO: Use for delay fault
   absl::optional<std::pair<Common::Redis::FaultType, std::chrono::milliseconds>> fault = fault_manager_.get_fault_for_command(to_lower_string);
   if (fault.has_value()) {
-    SplitRequestPtr request_ptr = error_fault_handler_.startRequest(
-            std::move(request), callbacks, handler->command_stats_, time_source_);
+    if (fault.value().first == Common::Redis::FaultType::Error) {
+      if (fault.value().second > std::chrono::milliseconds(0)) {
+        std::cout << "Creating Delay Fault." << std::endl;
+        // Create a delay fault request
+        // SplitRequestPtr request_ptr = DelayFaultRequest::create(std::move(request), callbacks, 
+        //   handler->command_stats_, time_source_, dispatcher_, fault.value().second);
+        std::unique_ptr<DelayFaultRequest> delay_fault_ptr{new DelayFaultRequest(handler->command_stats_, time_source_, dispatcher_, fault.value().second)};
+
+        // Create the request to be delayed, using the fault as callback and parent
+        std::cout << "Creating Error Fault." << std::endl;
+        SplitRequestPtr request_ptr = error_fault_handler_.startRequest(
+                std::move(request), *delay_fault_ptr, handler->command_stats_, time_source_);
+        delay_fault_ptr->wrapped_request_ptr_ = std::move(request_ptr);
+        
+        std::cout << "Both Faults created, waiting for requests to explode..." << std::endl;
+        return delay_fault_ptr;
+      } else {
+        SplitRequestPtr request_ptr = error_fault_handler_.startRequest(
+                std::move(request), callbacks, handler->command_stats_, time_source_);
         return request_ptr;
+      }
+    }
   }
 
   ENVOY_LOG(debug, "redis: splitting '{}'", request->toString());
