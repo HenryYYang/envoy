@@ -137,23 +137,14 @@ private:
  */
 class DelayFaultRequest : public SplitRequestBase, public SplitCallbacks { // TODO: add SplitCallbacks here too?
 public:
-  static SplitRequestPtr create(Common::Redis::RespValuePtr&& incoming_request,
-                                SplitCallbacks& callbacks, CommandStats& command_stats,
-                                TimeSource& time_source, Event::Dispatcher& dispatcher, 
-                                std::chrono::milliseconds delay);
-  
-  void createWrappedRequest(HandlerDataPtr handler, 
-                            Common::Redis::RespValuePtr&& incoming_request,
-                            TimeSource& time_source);
-  
-   DelayFaultRequest(CommandStats& command_stats, TimeSource& time_source, 
+   DelayFaultRequest(SplitCallbacks& callbacks, CommandStats& command_stats, TimeSource& time_source, 
     Event::Dispatcher& dispatcher, std::chrono::milliseconds delay)
-    : SplitRequestBase(command_stats, time_source), dispatcher_(dispatcher),
+    : SplitRequestBase(command_stats, time_source), callbacks_(callbacks), dispatcher_(dispatcher),
       delay_(delay) {}
   
   // SplitCallbacks
-  bool connectionAllowed() override { return true; }
-  void onAuth(const std::string&) override {}
+  bool connectionAllowed() override { return callbacks_.connectionAllowed(); }
+  void onAuth(const std::string& password) override { callbacks_.onAuth(password); }
   void onResponse(Common::Redis::RespValuePtr&& response) override;
 
   // RedisProxy::CommandSplitter::SplitRequest
@@ -163,6 +154,7 @@ public:
 
 private:
 
+  SplitCallbacks& callbacks_;
   Event::Dispatcher& dispatcher_;
   std::chrono::milliseconds delay_;
   Event::TimerPtr delay_timer_;
