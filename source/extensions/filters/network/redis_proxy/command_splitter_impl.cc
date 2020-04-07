@@ -135,7 +135,6 @@ SplitRequestPtr ErrorFaultRequest::create(Router& router,
   if (route) {
     std::cout << "\t" << "--- FAULT INJECTION - [ERROR] ---" << std::endl;
     request_ptr->onResponse(Common::Redis::Utility::makeError("Fault Injection: Abort"));
-    // Need a handle?
   }
   
   return request_ptr;
@@ -143,27 +142,21 @@ SplitRequestPtr ErrorFaultRequest::create(Router& router,
 
 void DelayFaultRequest::onResponse(Common::Redis::RespValuePtr&& response) {
   std::cout << "\t" << "DelayFaultRequest::onResponse()" << std::endl;
-  // Fire a timer to delay the wrapped request's response
-  // auto lambda = [this, response = std::move(response)]() mutable {
-  //    onResponse(std::move(response));
-  // };
-
-  // delay_timer_ = dispatcher_.createTimer(std::move(lambda));
-  
-  
-  // TODO: We need to post the timer to the dispatcher thread. For whatever reason
-  // that's the way it is.
-  std::cout << "\t" << "dispatcher_.createTimer()" << std::endl;
-  dispatcher_.post([this, &response]() { // Question: Is this ok, since we are already doing &&uniq_ptr?
-    delay_timer_ = dispatcher_.createTimer([this, &response]()-> void {
-        callbacks_.onResponse(std::move(response));
+  response_ = std::move(response);
+  dispatcher_.post([this]() {
+    delay_timer_ = dispatcher_.createTimer([this]()-> void {
+        onDelayResponse();
     });
     delay_timer_->enableTimer(delay_);
   });
 }
 
+void DelayFaultRequest::onDelayResponse() {
+  std::cout << "\t" << "DelayFaultRequest::onDelayResponse()" << std::endl;
+  callbacks_.onResponse(std::move(response_));
+}
+
 void DelayFaultRequest::cancel() {
-  std::cout << "\t" << "DelayFaultRequest::cancel()" << std::endl;
   delay_timer_->disableTimer();
   delay_timer_ = nullptr;
 }

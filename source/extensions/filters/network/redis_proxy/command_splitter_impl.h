@@ -4,6 +4,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <functional> // TODO: Remove?
 
 #include "envoy/stats/scope.h"
 #include "envoy/stats/stats_macros.h"
@@ -150,6 +151,7 @@ public:
   // RedisProxy::CommandSplitter::SplitRequest
   void cancel() override;
 
+  void onDelayResponse();
   SplitRequestPtr wrapped_request_ptr_;
 
 private:
@@ -158,6 +160,7 @@ private:
   Event::Dispatcher& dispatcher_;
   std::chrono::milliseconds delay_;
   Event::TimerPtr delay_timer_;
+  Common::Redis::RespValuePtr response_;
 };
 
 /**
