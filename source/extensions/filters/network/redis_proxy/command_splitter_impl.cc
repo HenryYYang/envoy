@@ -150,10 +150,17 @@ void DelayFaultRequest::onResponse(Common::Redis::RespValuePtr&& response) {
 
   // delay_timer_ = dispatcher_.createTimer(std::move(lambda));
   
-  delay_timer_ = dispatcher_.createTimer([this]()-> void {
-    callbacks_.onResponse(Common::Redis::Utility::makeError("Fault Injection: Abort"));
+  
+  // TODO: We need to post the timer to the dispatcher thread. For whatever reason
+  // that's the way it is.
+  std::cout << "\t" << "dispatcher_.createTimer()" << std::endl;
+  dispatcher_.post([this]() {
+    delay_timer_ = dispatcher_.createTimer([this]()-> void {
+        callbacks_.onResponse(Common::Redis::Utility::makeError("Fault Injection: Abort"));
+    });
+    delay_timer_->enableTimer(delay_);
   });
-  delay_timer_->enableTimer(delay_);
+
 
   // HACK: We'll just return an abort for now until we figure out how to return a wrapped response.
   response->type();           // HACK
