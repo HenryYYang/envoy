@@ -164,8 +164,7 @@ void DelayFaultRequest::onResponse(Common::Redis::RespValuePtr&& response) {
 
   // HACK: We'll just return an abort for now until we figure out how to return a wrapped response.
   response->type();           // HACK
-  delay_.count();            // HACK
-  dispatcher_.timeSource(); // HACK
+  // std::cout << "TIMER ENABLED:" << delay_timer_->enabled() << std::endl; // HMMMM THIS DOESN'T WORK
   // callbacks_.onResponse(Common::Redis::Utility::makeError("Fault Injection: Abort"));
 }
 
