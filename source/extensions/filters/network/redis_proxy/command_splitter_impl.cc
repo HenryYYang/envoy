@@ -154,18 +154,12 @@ void DelayFaultRequest::onResponse(Common::Redis::RespValuePtr&& response) {
   // TODO: We need to post the timer to the dispatcher thread. For whatever reason
   // that's the way it is.
   std::cout << "\t" << "dispatcher_.createTimer()" << std::endl;
-  dispatcher_.post([this]() {
-    delay_timer_ = dispatcher_.createTimer([this]()-> void {
-        callbacks_.onResponse(Common::Redis::Utility::makeError("Fault Injection: Abort"));
+  dispatcher_.post([this, &response]() { // Question: Is this ok, since we are already doing &&uniq_ptr?
+    delay_timer_ = dispatcher_.createTimer([this, &response]()-> void {
+        callbacks_.onResponse(std::move(response));
     });
     delay_timer_->enableTimer(delay_);
   });
-
-
-  // HACK: We'll just return an abort for now until we figure out how to return a wrapped response.
-  response->type();           // HACK
-  // std::cout << "TIMER ENABLED:" << delay_timer_->enabled() << std::endl; // HMMMM THIS DOESN'T WORK
-  // callbacks_.onResponse(Common::Redis::Utility::makeError("Fault Injection: Abort"));
 }
 
 void DelayFaultRequest::cancel() {
