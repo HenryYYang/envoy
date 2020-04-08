@@ -42,15 +42,13 @@ namespace Redis {
 
     if (!fault_map_.empty()) {
       int amortized_fault = 0;
+      std::pair<FaultMapType::iterator, FaultMapType::iterator> range;
 
-      // TODO: Make sure this math is right!!!
       // TODO: Do we need to create a temporary map? Think about perf.
 
       // Look for command specific faults first
       std::cout << "\n\n\n" << "get_fault_for_command: " << command << std::endl;
-      std::cout << "\t" << "Command specific faults" << " count:" << fault_map_.count(command) << std::endl;
 
-      std::pair<FaultMapType::iterator, FaultMapType::iterator> range;
       range = fault_map_.equal_range(command);
       for (FaultMapType::iterator it = range.first; it != range.second; ++it) {
         envoy::extensions::filters::network::redis_proxy::v3::RedisProxy_RedisFault fault = it->second;
@@ -67,7 +65,7 @@ namespace Redis {
 
       // If that fails, look at faults that apply to all commands
       std::cout << "\t" << "General faults" << " count:" << fault_map_.count(ALL_KEY) << std::endl;
-      range = fault_map_.equal_range(command);
+      range = fault_map_.equal_range(ALL_KEY);
       for (FaultMapType::iterator it = range.first; it != range.second; ++it) {
         envoy::extensions::filters::network::redis_proxy::v3::RedisProxy_RedisFault fault = it->second;
         std::cout << "\t\t" << "---" << "with type: " << fault.fault_type() << std::endl;
