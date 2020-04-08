@@ -12,15 +12,16 @@ namespace Redis {
     for (auto fault : faults) {
       if (fault.commands_size() > 0) {
         for (auto& command: fault.commands()) {
-          std::cout << "\t" << "For command: " << absl::AsciiStrToLower(command) << " with type: " << fault.GetTypeName() << std::endl;
+          std::cout << "\t" << "For command: " << absl::AsciiStrToLower(command) << " with type: " << fault.fault_type() << std::endl;
           fault_map_.insert(FaultMapType::value_type(absl::AsciiStrToLower(command), fault));
         }
       } else {
         // Generic "ALL" entry in map
-        std::cout << "\t" << "For all: " << ALL_KEY << std::endl;
+        std::cout << "\t" << "For all: " << ALL_KEY << " with type: " << fault.fault_type() << std::endl;
         fault_map_.insert(FaultMapType::value_type(ALL_KEY, fault));
       }
     }
+    std::cout << "fault_map_.size() =" << fault_map_.size() << std::endl;
   }
 
   absl::optional<std::pair<FaultType, std::chrono::milliseconds>> RedisFaultManager::get_fault_for_command(std::string command) {
@@ -46,13 +47,18 @@ namespace Redis {
       // TODO: Do we need to create a temporary map? Think about perf.
 
       // Look for command specific faults first
-      for (auto it = fault_map_.find(command); it != fault_map_.end(); it++) {
-        std::cout << "\t" << "found command-specific fault for command '" << command << "'" << std::endl;
+      std::cout << "\n\n\n" << "get_fault_for_command: " << command << std::endl;
+      std::cout << "\t" << "Command specific faults" << " count:" << fault_map_.count(command) << std::endl;
+
+      std::pair<FaultMapType::iterator, FaultMapType::iterator> range;
+      range = fault_map_.equal_range(command);
+      for (FaultMapType::iterator it = range.first; it != range.second; ++it) {
         envoy::extensions::filters::network::redis_proxy::v3::RedisProxy_RedisFault fault = it->second;
+        std::cout << "\t\t" << "for command '" << command << "'" << "with type: " << fault.fault_type() << std::endl;
         const uint64_t fault_injection_percentage = calculate_fault_injection_percentage(fault);
-        std::cout << "\t\t" << "fault_injection_percentage = " << fault_injection_percentage << ", amortized_fault = " << amortized_fault << std::endl;
+        std::cout << "\t\t\t" << "fault_injection_percentage = " << fault_injection_percentage << ", amortized_fault = " << amortized_fault << std::endl;
         if (random_.random() % (100 - amortized_fault) < fault_injection_percentage) {
-          std::cout << "\t\t" << "injecting command specific fault" << std::endl;
+          std::cout << "\t\t\t" << "injecting command specific fault" << std::endl;
           return std::make_pair(get_fault_type(fault), get_fault_delay_ms(fault));
         } else {
           amortized_fault += fault_injection_percentage;
@@ -60,13 +66,15 @@ namespace Redis {
       }
 
       // If that fails, look at faults that apply to all commands
-      for (auto it = fault_map_.find(ALL_KEY); it != fault_map_.end(); it++) {
-        std::cout << "\t" << "found general fault" << std::endl;
+      std::cout << "\t" << "General faults" << " count:" << fault_map_.count(ALL_KEY) << std::endl;
+      range = fault_map_.equal_range(command);
+      for (FaultMapType::iterator it = range.first; it != range.second; ++it) {
         envoy::extensions::filters::network::redis_proxy::v3::RedisProxy_RedisFault fault = it->second;
+        std::cout << "\t\t" << "---" << "with type: " << fault.fault_type() << std::endl;
         const uint64_t fault_injection_percentage = calculate_fault_injection_percentage(fault);
-        std::cout << "\t\t" << "fault_injection_percentage = " << fault_injection_percentage << ", amortized_fault = " << amortized_fault << std::endl;
+        std::cout << "\t\t\t" << "fault_injection_percentage = " << fault_injection_percentage << ", amortized_fault = " << amortized_fault << std::endl;
         if (random_.random() % (100 - amortized_fault) < fault_injection_percentage) {
-          std::cout << "\t\t" << "injecting general fault" << std::endl;
+          std::cout << "\t\t\t" << "injecting general fault" << std::endl;
           return std::make_pair(get_fault_type(fault), get_fault_delay_ms(fault));
         } else {
           amortized_fault += fault_injection_percentage;
