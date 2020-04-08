@@ -347,6 +347,8 @@ private:
   TimeSource& time_source_;
   Event::Dispatcher& dispatcher_;
   Common::Redis::RedisFaultManager fault_manager_;
+
+  const std::string ERROR_FAULT = "error_fault";
 };
 
 } // namespace CommandSplitter

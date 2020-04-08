@@ -464,6 +464,8 @@ InstanceImpl::InstanceImpl(RouterPtr&& router, Stats::Scope& scope, const std::s
 
   addHandler(scope, stat_prefix, Common::Redis::SupportedCommands::mset(), latency_in_micros,
              mset_handler_);
+
+  addHandler(scope, stat_prefix, ERROR_FAULT, latency_in_micros, error_fault_handler_);
 }
 
 SplitRequestPtr InstanceImpl::makeRequest(Common::Redis::RespValuePtr&& request,
@@ -511,6 +513,14 @@ SplitRequestPtr InstanceImpl::makeRequest(Common::Redis::RespValuePtr&& request,
     return nullptr;
   }
 
+  // Fault Injection Part 1: Get Faults that use the regular handler
+  absl::optional<std::pair<Common::Redis::FaultType, std::chrono::milliseconds>> fault = fault_manager_.get_fault_for_command(to_lower_string);
+  if (fault.has_value()) {
+    if (fault.value().first == Common::Redis::FaultType::Error) {
+      to_lower_string = ERROR_FAULT;
+  }
+
+  // Get the handler
   auto handler = handler_lookup_table_.find(to_lower_string.c_str());
   if (handler == nullptr) {
     stats_.unsupported_command_.inc();
@@ -519,39 +529,21 @@ SplitRequestPtr InstanceImpl::makeRequest(Common::Redis::RespValuePtr&& request,
     return nullptr;
   }
 
-  // FAULT INJECTION GOES HERE
-  dispatcher_.timeSource(); // TODO: Use for delay fault
-  absl::optional<std::pair<Common::Redis::FaultType, std::chrono::milliseconds>> fault = fault_manager_.get_fault_for_command(to_lower_string);
-  if (fault.has_value()) {
-    if (fault.value().first == Common::Redis::FaultType::Error) {
-      if (fault.value().second > std::chrono::milliseconds(0)) {
-        std::cout << "Creating Delay Fault." << std::endl;
-        // Create a delay fault request
-        // SplitRequestPtr request_ptr = DelayFaultRequest::create(std::move(request), callbacks, 
-        //   handler->command_stats_, time_source_, dispatcher_, fault.value().second);
-        std::unique_ptr<DelayFaultRequest> delay_fault_ptr{new DelayFaultRequest(callbacks, handler->command_stats_, time_source_, dispatcher_, fault.value().second)};
-
-        // Create the request to be delayed, using the fault as callback and parent
-        std::cout << "Creating Error Fault." << std::endl;
-        SplitRequestPtr request_ptr = error_fault_handler_.startRequest(
-                std::move(request), *delay_fault_ptr, handler->command_stats_, time_source_);
-        delay_fault_ptr->wrapped_request_ptr_ = std::move(request_ptr);
-        
-        std::cout << "Both Faults created, waiting for requests to explode..." << std::endl;
-        return delay_fault_ptr;
-      } else {
-        SplitRequestPtr request_ptr = error_fault_handler_.startRequest(
-                std::move(request), callbacks, handler->command_stats_, time_source_);
-        return request_ptr;
-      }
-    }
-  }
-
+  // Start request
   ENVOY_LOG(debug, "redis: splitting '{}'", request->toString());
   handler->command_stats_.total_.inc();
-  SplitRequestPtr request_ptr = handler->handler_.get().startRequest(
+  if (fault.has_value() && fault.value().second > std::chrono::milliseconds(0)) {
+    // Inject delay fault and use it to wrap the request
+    std::unique_ptr<DelayFaultRequest> delay_fault_ptr{new DelayFaultRequest(callbacks, handler->command_stats_, time_source_, dispatcher_, fault.value().second)};
+    SplitRequestPtr request_ptr = handler->handler_.get().startRequest(std::move(request), *delay_fault_ptr, handler->command_stats_, time_source_);
+    delay_fault_ptr->wrapped_request_ptr_ = std::move(request_ptr);
+    return delay_fault_ptr;
+  } else {
+    // Start request normally (including non-delay faults)
+    SplitRequestPtr request_ptr = handler->handler_.get().startRequest(
       std::move(request), callbacks, handler->command_stats_, time_source_);
-  return request_ptr;
+    return request_ptr;
+  }
 }
 
 void InstanceImpl::onInvalidRequest(SplitCallbacks& callbacks) {
