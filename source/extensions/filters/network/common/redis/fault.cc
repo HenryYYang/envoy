@@ -8,15 +8,16 @@ namespace Redis {
 
   RedisFaultManager::RedisFaultManager(Runtime::RandomGenerator& random, Runtime::Loader& runtime, const ::google::protobuf::RepeatedPtrField< ::envoy::extensions::filters::network::redis_proxy::v3::RedisProxy_RedisFault> faults) : random_(random), runtime_(runtime) {
     // Group faults by command
+    std::cout << "Inserting faults:" << std::endl;
     for (auto fault : faults) {
       if (fault.commands_size() > 0) {
         for (auto& command: fault.commands()) {
-          std::cout << "Inserting fault for command: " << absl::AsciiStrToLower(command) << " with type: " << fault.GetTypeName() << std::endl;
+          std::cout << "\t" << "For command: " << absl::AsciiStrToLower(command) << " with type: " << fault.GetTypeName() << std::endl;
           fault_map_.insert(FaultMapType::value_type(absl::AsciiStrToLower(command), fault));
         }
       } else {
         // Generic "ALL" entry in map
-        std::cout << "Inserting fault for all: " << ALL_KEY << std::endl;
+        std::cout << "\t" << "For all: " << ALL_KEY << std::endl;
         fault_map_.insert(FaultMapType::value_type(ALL_KEY, fault));
       }
     }

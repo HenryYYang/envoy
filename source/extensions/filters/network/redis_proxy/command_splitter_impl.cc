@@ -518,6 +518,7 @@ SplitRequestPtr InstanceImpl::makeRequest(Common::Redis::RespValuePtr&& request,
   if (fault.has_value()) {
     if (fault.value().first == Common::Redis::FaultType::Error) {
       to_lower_string = ERROR_FAULT;
+    }
   }
 
   // Get the handler
