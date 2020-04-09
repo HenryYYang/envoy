@@ -40,32 +40,19 @@ namespace Redis {
     // we receive a GET, we want 5% of GETs to get DELAY, and 5% to get ERROR. Thus, we need to amortize the
     // percentages.
     //
-    // 1. Set amortized_fault to 0
-    // 2. Look for command specific faults
-    // 3. For each command specific fault
-    //  a. check if it applies, using 100 - amortized_fault as modulo for random
-    //  b. if (a), return a pair of fault type and delay, if any
-    //  c. if (!a), add fault percentage to amortized_fault
-    // 4. For each general fault, repeat the process in (3)
-    // 5. If we did not hit any faults, return null;
+    // 0. Get random number.
+    // 1. Get faults for given command.
+    // 2. For each fault, calculate the ammortized fault injection percentage.
+
 
     if (!fault_map_.empty()) {
       auto random_number = random_.random();
-      // random_.random() % (100 - amortized_fault) < fault_injection_percentage) {
-
       int amortized_fault = 0;
-      std::pair<FaultMapType::iterator, FaultMapType::iterator> range;
-
-      // Look for command specific faults first
-      std::cout << "\n\n\n" << "get_fault_for_command: " << command << std::endl;
-
-      range = fault_map_.equal_range(command);
+      std::pair<FaultMapType::iterator, FaultMapType::iterator> range = fault_map_.equal_range(command);
       for (FaultMapType::iterator it = range.first; it != range.second; ++it) {
         envoy::extensions::filters::network::redis_proxy::v3::RedisProxy_RedisFault fault = it->second;
-        std::cout << "\t\t" << "for command '" << command << "'" << "with type: " << fault.fault_type() << std::endl;
         const uint64_t fault_injection_percentage = calculate_fault_injection_percentage(fault);
         if (random_number % (100 - amortized_fault) < fault_injection_percentage) {
-          std::cout << "\t\t\t" << "injecting general fault" << std::endl;
           return std::make_pair(get_fault_type(fault), get_fault_delay_ms(fault));
         } else {
           amortized_fault += fault_injection_percentage;
@@ -77,7 +64,6 @@ namespace Redis {
     return absl::nullopt;
   }
 
-    // TODO: Check if this is ok
   uint64_t RedisFaultManager::calculate_fault_injection_percentage(envoy::extensions::filters::network::redis_proxy::v3::RedisProxy_RedisFault& fault) {
       if (fault.has_fault_enabled()) {
         if (fault.fault_enabled().has_default_value()) {
