@@ -4,7 +4,6 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <functional> // TODO: Remove?
 
 #include "envoy/stats/scope.h"
 #include "envoy/stats/stats_macros.h"

@@ -542,7 +542,6 @@ SplitRequestPtr InstanceImpl::makeRequest(Common::Redis::RespValuePtr&& request,
   bool has_delay_fault = fault.has_value() && fault.value().second > std::chrono::milliseconds(0);
   std::unique_ptr<DelayFaultRequest> delay_fault_ptr;
   if (has_delay_fault) {
-    std::cout << "Injecting delay fault" << std::endl; // TODO: Remove
     delay_fault_ptr = DelayFaultRequest::create(callbacks, handler->command_stats_, time_source_, dispatcher_, fault.value().second);
   }
 
@@ -553,7 +552,6 @@ SplitRequestPtr InstanceImpl::makeRequest(Common::Redis::RespValuePtr&& request,
   // 2) we use a ternary operator for the callback parameter- we want to use the delay_fault as callback if there is a delay.
   SplitRequestPtr request_ptr;
   if (fault.has_value() && fault.value().first == Common::Redis::FaultType::Error) { // Only support Error fault currently
-    std::cout << "Injecting error fault" << std::endl; // TODO: Remove
     request_ptr = error_fault_handler_.startRequest(std::move(request), has_delay_fault ? *delay_fault_ptr : callbacks, handler->command_stats_, time_source_);
   } else {
     request_ptr = handler->handler_.get().startRequest(std::move(request), has_delay_fault ? *delay_fault_ptr : callbacks, handler->command_stats_, time_source_);
