@@ -142,11 +142,14 @@ private:
  */
 class DelayFaultRequest : public SplitRequestBase, public SplitCallbacks {
 public:
-   DelayFaultRequest(SplitCallbacks& callbacks, CommandStats& command_stats, TimeSource& time_source, 
+  static std::unique_ptr<DelayFaultRequest> create(SplitCallbacks& callbacks, CommandStats& command_stats, TimeSource& time_source, 
+    Event::Dispatcher& dispatcher, std::chrono::milliseconds delay);
+  
+  DelayFaultRequest(SplitCallbacks& callbacks, CommandStats& command_stats, TimeSource& time_source, 
     Event::Dispatcher& dispatcher, std::chrono::milliseconds delay)
     : SplitRequestBase(command_stats, time_source), callbacks_(callbacks), dispatcher_(dispatcher),
       delay_(delay) {}
-  
+
   // SplitCallbacks
   bool connectionAllowed() override { return callbacks_.connectionAllowed(); }
   void onAuth(const std::string& password) override { callbacks_.onAuth(password); }
@@ -158,6 +161,7 @@ public:
   SplitRequestPtr wrapped_request_ptr_;
 
 private:
+
   void onDelayResponse();
 
   SplitCallbacks& callbacks_;
