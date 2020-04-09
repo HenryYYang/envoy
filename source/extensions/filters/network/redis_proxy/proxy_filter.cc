@@ -71,7 +71,6 @@ void ProxyFilter::onEvent(Network::ConnectionEvent event) {
   if (event == Network::ConnectionEvent::RemoteClose ||
       event == Network::ConnectionEvent::LocalClose) {
     while (!pending_requests_.empty()) {
-      std::cout << "\t" << "ProxyFilter::onEvent()" << "\t" << "pending_requests_.pop_front();\n";
       if (pending_requests_.front().request_handle_ != nullptr) {
         pending_requests_.front().request_handle_->cancel();
       }
@@ -98,7 +97,6 @@ void ProxyFilter::onAuth(PendingRequest& request, const std::string& password) {
 }
 
 void ProxyFilter::onResponse(PendingRequest& request, Common::Redis::RespValuePtr&& value) {
-  std::cout << "\t" << "ProxyFilter::onResponse()" << "\n";
   ASSERT(!pending_requests_.empty());
   request.pending_response_ = std::move(value);
   request.request_handle_ = nullptr;
@@ -107,7 +105,6 @@ void ProxyFilter::onResponse(PendingRequest& request, Common::Redis::RespValuePt
   // unlock several out of order responses).
   while (!pending_requests_.empty() && pending_requests_.front().pending_response_) {
     encoder_->encode(*pending_requests_.front().pending_response_, encoder_buffer_);
-    std::cout << "\t" << "ProxyFilter::onResponse()" << "\t" << "pending_requests_.pop_front();\n";
     pending_requests_.pop_front();
   }
 
