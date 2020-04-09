@@ -10,32 +10,22 @@
 #include "envoy/extensions/filters/network/redis_proxy/v3/redis_proxy.pb.validate.h"
 #include "envoy/upstream/upstream.h"
 
-// #include "common/common/empty_string.h"
-// #include "common/config/datasource.h"
-
-// #include "extensions/filters/network/common/factory_base.h"
-// #include "extensions/filters/network/well_known_names.h"
-
-
 namespace Envoy {
 namespace Extensions {
 namespace NetworkFilters {
 namespace Common {
 namespace Redis {
 
-// Fault Injection TODO Priority
-// 1. Figure out how to get values off the runtime fraction.
-
-
-// TODO: Move fault classes
-// TODO: Check if there is a runtime hook that updates fault_values. If not, we probably only want to get the config percentages
-// every X requests (ie 1000 or more)?
-
 /**
  * Read policy to use for Redis cluster.
  */
 enum class FaultType { Delay, Error };
 
+/**
+ * Fault management- creation, storage and retrieval. Faults are queried for by command,
+ * so they are stored in a multimap using the command as key. For faults that apply to
+ * all commands, we use a special ALL_KEYS entry in the map.
+ */
 class RedisFaultManager {
   typedef std::multimap<std::string, envoy::extensions::filters::network::redis_proxy::v3::RedisProxy_RedisFault> FaultMapType;
 

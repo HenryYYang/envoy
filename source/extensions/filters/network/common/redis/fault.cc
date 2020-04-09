@@ -8,20 +8,16 @@ namespace Redis {
 
   RedisFaultManager::RedisFaultManager(Runtime::RandomGenerator& random, Runtime::Loader& runtime, const ::google::protobuf::RepeatedPtrField< ::envoy::extensions::filters::network::redis_proxy::v3::RedisProxy_RedisFault> faults) : random_(random), runtime_(runtime) {
     // Group faults by command
-    std::cout << "Inserting faults:" << std::endl;
     for (auto fault : faults) {
       if (fault.commands_size() > 0) {
         for (auto& command: fault.commands()) {
-          std::cout << "\t" << "For command: " << absl::AsciiStrToLower(command) << " with type: " << fault.fault_type() << std::endl;
           fault_map_.insert(FaultMapType::value_type(absl::AsciiStrToLower(command), fault));
         }
       } else {
-        // Generic "ALL" entry in map
-        std::cout << "\t" << "For all: " << ALL_KEY << " with type: " << fault.fault_type() << std::endl;
+        // Generic "ALL" entry in map for faults that map to all keys
         fault_map_.insert(FaultMapType::value_type(ALL_KEY, fault));
       }
     }
-    std::cout << "fault_map_.size() =" << fault_map_.size() << std::endl;
   }
 
   absl::optional<std::pair<FaultType, std::chrono::milliseconds>> RedisFaultManager::get_fault_for_command(std::string command) {
@@ -43,8 +39,6 @@ namespace Redis {
     if (!fault_map_.empty()) {
       int amortized_fault = 0;
       std::pair<FaultMapType::iterator, FaultMapType::iterator> range;
-
-      // TODO: Do we need to create a temporary map? Think about perf.
 
       // Look for command specific faults first
       std::cout << "\n\n\n" << "get_fault_for_command: " << command << std::endl;
