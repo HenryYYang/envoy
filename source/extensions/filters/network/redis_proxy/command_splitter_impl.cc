@@ -136,6 +136,7 @@ SplitRequestPtr ErrorFaultRequest::create(Router& router,
   const auto route = router.upstreamPool(incoming_request->asArray()[1].asString());
   if (route) {
     request_ptr->onResponse(Common::Redis::Utility::makeError(FAULT_INJECTED_ERROR));
+    request_ptr->command_stats_.error_fault_.inc();
   }
   
   return request_ptr;
@@ -148,6 +149,7 @@ void DelayFaultRequest::onResponse(Common::Redis::RespValuePtr&& response) {
         onDelayResponse();
     });
     delay_timer_->enableTimer(delay_);
+    command_stats_.delay_fault_.inc();
   });
 }
 

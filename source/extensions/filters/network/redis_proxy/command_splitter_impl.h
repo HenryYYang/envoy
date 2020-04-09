@@ -45,7 +45,9 @@ using Response = ConstSingleton<ResponseValues>;
 #define ALL_COMMAND_STATS(COUNTER)                                                                 \
   COUNTER(total)                                                                                   \
   COUNTER(success)                                                                                 \
-  COUNTER(error)
+  COUNTER(error)                                                                                   \
+  COUNTER(error_fault)                                                                             \
+  COUNTER(delay_fault)
 
 /**
  * Struct definition for all command stats. @see stats_macros.h
