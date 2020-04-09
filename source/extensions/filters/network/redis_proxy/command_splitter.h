@@ -23,6 +23,8 @@ public:
    * Cancel the request. No further request callbacks will be called.
    */
   virtual void cancel() PURE;
+  virtual void delay_latency_metric() PURE;
+  virtual void complete_latency() PURE;
 };
 
 using SplitRequestPtr = std::unique_ptr<SplitRequest>;

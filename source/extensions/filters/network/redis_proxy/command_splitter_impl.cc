@@ -79,7 +79,9 @@ void SplitRequestBase::updateStats(const bool success) {
   } else {
     command_stats_.error_.inc();
   }
-  command_latency_->complete();
+  if (!delay_command_latency_) {
+    command_latency_->complete();
+  }
 }
 
 SingleServerRequest::~SingleServerRequest() { ASSERT(!handle_); }
@@ -156,12 +158,12 @@ void DelayFaultRequest::onResponse(Common::Redis::RespValuePtr&& response) {
         onDelayResponse();
     });
     delay_timer_->enableTimer(delay_);
-    command_stats_.delay_fault_.inc();
-    // TODO: Is it possible to hijack the latency timer for the inner request?
   });
 }
 
 void DelayFaultRequest::onDelayResponse() {
+  command_stats_.delay_fault_.inc();
+  wrapped_request_ptr_->complete_latency();
   callbacks_.onResponse(std::move(response_));
   delay_timer_ = nullptr;
 }
@@ -557,8 +559,9 @@ SplitRequestPtr InstanceImpl::makeRequest(Common::Redis::RespValuePtr&& request,
     request_ptr = handler->handler_.get().startRequest(std::move(request), has_delay_fault ? *delay_fault_ptr : callbacks, handler->command_stats_, time_source_);
   }
 
-  // Complete delay, if any.
+  // Complete delay, if any. The delay fault takes ownership of the wrapped request.
   if (has_delay_fault) {
+    request_ptr->delay_latency_metric();
     delay_fault_ptr->wrapped_request_ptr_ = std::move(request_ptr);
     return delay_fault_ptr;
   } else {

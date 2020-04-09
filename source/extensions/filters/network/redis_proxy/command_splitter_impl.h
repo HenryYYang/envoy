@@ -86,6 +86,16 @@ protected:
   static void onWrongNumberOfArguments(SplitCallbacks& callbacks,
                                        const Common::Redis::RespValue& request);
   void updateStats(const bool success);
+  
+  // To support delay faults, we allow faults to override the regular command latency
+  // recording behavior.
+  void delay_latency_metric() {
+    delay_command_latency_ = true;
+  }
+  void complete_latency() {
+    command_latency_->complete();
+  }
+
 
   SplitRequestBase(CommandStats& command_stats, TimeSource& time_source)
       : command_stats_(command_stats) {
@@ -94,6 +104,7 @@ protected:
   }
   CommandStats& command_stats_;
   Stats::TimespanPtr command_latency_;
+  bool delay_command_latency_;
 };
 
 /**
