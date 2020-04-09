@@ -120,7 +120,7 @@ protected:
 };
 
 /**
- * ErrorFaultRequest returns an error
+ * ErrorFaultRequest returns an error.
  */
 class ErrorFaultRequest : public SingleServerRequest {
 public:
@@ -131,12 +131,14 @@ public:
 private:
   ErrorFaultRequest(SplitCallbacks& callbacks, CommandStats& command_stats, TimeSource& time_source)
       : SingleServerRequest(callbacks, command_stats, time_source) {}
+  
+  const static std::string FAULT_INJECTED_ERROR;
 };
 
 /**
  * DelayFaultRequest wraps a request- either a normal request or a fault- and delays it.
  */
-class DelayFaultRequest : public SplitRequestBase, public SplitCallbacks { // TODO: add SplitCallbacks here too?
+class DelayFaultRequest : public SplitRequestBase, public SplitCallbacks {
 public:
    DelayFaultRequest(SplitCallbacks& callbacks, CommandStats& command_stats, TimeSource& time_source, 
     Event::Dispatcher& dispatcher, std::chrono::milliseconds delay)
@@ -151,10 +153,10 @@ public:
   // RedisProxy::CommandSplitter::SplitRequest
   void cancel() override;
 
-  void onDelayResponse();
   SplitRequestPtr wrapped_request_ptr_;
 
 private:
+  void onDelayResponse();
 
   SplitCallbacks& callbacks_;
   Event::Dispatcher& dispatcher_;

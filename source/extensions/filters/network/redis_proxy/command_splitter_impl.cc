@@ -124,6 +124,8 @@ SplitRequestPtr SimpleRequest::create(Router& router,
   return request_ptr;
 }
 
+const std::string ErrorFaultRequest::FAULT_INJECTED_ERROR = "Fault Injected: Error";
+
 SplitRequestPtr ErrorFaultRequest::create(Router& router,
                                       Common::Redis::RespValuePtr&& incoming_request,
                                       SplitCallbacks& callbacks, CommandStats& command_stats,
@@ -133,15 +135,13 @@ SplitRequestPtr ErrorFaultRequest::create(Router& router,
 
   const auto route = router.upstreamPool(incoming_request->asArray()[1].asString());
   if (route) {
-    std::cout << "\t" << "--- FAULT INJECTION - [ERROR] ---" << std::endl;
-    request_ptr->onResponse(Common::Redis::Utility::makeError("Fault Injection: Abort"));
+    request_ptr->onResponse(Common::Redis::Utility::makeError(FAULT_INJECTED_ERROR));
   }
   
   return request_ptr;
 }
 
 void DelayFaultRequest::onResponse(Common::Redis::RespValuePtr&& response) {
-  std::cout << "\t" << "DelayFaultRequest::onResponse()" << std::endl;
   response_ = std::move(response);
   dispatcher_.post([this]() {
     delay_timer_ = dispatcher_.createTimer([this]()-> void {
@@ -152,7 +152,6 @@ void DelayFaultRequest::onResponse(Common::Redis::RespValuePtr&& response) {
 }
 
 void DelayFaultRequest::onDelayResponse() {
-  std::cout << "\t" << "DelayFaultRequest::onDelayResponse()" << std::endl;
   callbacks_.onResponse(std::move(response_));
 }
 
@@ -160,16 +159,6 @@ void DelayFaultRequest::cancel() {
   delay_timer_->disableTimer();
   delay_timer_ = nullptr;
 }
-
-
-
-
-
-
-
-
-
-
 
 SplitRequestPtr EvalRequest::create(Router& router, Common::Redis::RespValuePtr&& incoming_request,
                                     SplitCallbacks& callbacks, CommandStats& command_stats,
@@ -515,6 +504,7 @@ SplitRequestPtr InstanceImpl::makeRequest(Common::Redis::RespValuePtr&& request,
 
   // Fault Injection Part 1: Get Faults that use the regular handler
   absl::optional<std::pair<Common::Redis::FaultType, std::chrono::milliseconds>> fault = fault_manager_.get_fault_for_command(to_lower_string);
+  // Hijack the to_lower_string value to inject faults other than delay, allowing us to use the handler_lookup_table_.
   if (fault.has_value()) {
     if (fault.value().first == Common::Redis::FaultType::Error) {
       to_lower_string = ERROR_FAULT;
