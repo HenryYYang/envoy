@@ -14,8 +14,21 @@ namespace Redis {
           fault_map_.insert(FaultMapType::value_type(absl::AsciiStrToLower(command), fault));
         }
       } else {
-        // Generic "ALL" entry in map for faults that map to all keys
+        // Generic "ALL" entry in map for faults that map to all keys; also add to each command
         fault_map_.insert(FaultMapType::value_type(ALL_KEY, fault));
+      }
+    }
+    
+    // Add the ALL keys faults to each command too so that we can just query faults by command.
+    std::pair<FaultMapType::iterator, FaultMapType::iterator> range = fault_map_.equal_range(ALL_KEY);
+    for (FaultMapType::iterator it = range.first; it != range.second; ++it) {
+      envoy::extensions::filters::network::redis_proxy::v3::RedisProxy_RedisFault fault = it->second;
+      // Walk over all unique keys
+      for( auto it = fault_map_.begin(), end = fault_map_.end(); it != end; it = fault_map_.upper_bound(it->first)) {
+        std::string key = it->first;
+        if (key != ALL_KEY) {
+          fault_map_.insert(FaultMapType::value_type(key, fault));
+        }
       }
     }
   }
@@ -37,6 +50,9 @@ namespace Redis {
     // 5. If we did not hit any faults, return null;
 
     if (!fault_map_.empty()) {
+      auto random_number = random_.random();
+      // random_.random() % (100 - amortized_fault) < fault_injection_percentage) {
+
       int amortized_fault = 0;
       std::pair<FaultMapType::iterator, FaultMapType::iterator> range;
 
@@ -48,24 +64,7 @@ namespace Redis {
         envoy::extensions::filters::network::redis_proxy::v3::RedisProxy_RedisFault fault = it->second;
         std::cout << "\t\t" << "for command '" << command << "'" << "with type: " << fault.fault_type() << std::endl;
         const uint64_t fault_injection_percentage = calculate_fault_injection_percentage(fault);
-        std::cout << "\t\t\t" << "fault_injection_percentage = " << fault_injection_percentage << ", amortized_fault = " << amortized_fault << std::endl;
-        if (random_.random() % (100 - amortized_fault) < fault_injection_percentage) {
-          std::cout << "\t\t\t" << "injecting command specific fault" << std::endl;
-          return std::make_pair(get_fault_type(fault), get_fault_delay_ms(fault));
-        } else {
-          amortized_fault += fault_injection_percentage;
-        }
-      }
-
-      // If that fails, look at faults that apply to all commands
-      std::cout << "\t" << "General faults" << " count:" << fault_map_.count(ALL_KEY) << std::endl;
-      range = fault_map_.equal_range(ALL_KEY);
-      for (FaultMapType::iterator it = range.first; it != range.second; ++it) {
-        envoy::extensions::filters::network::redis_proxy::v3::RedisProxy_RedisFault fault = it->second;
-        std::cout << "\t\t" << "---" << "with type: " << fault.fault_type() << std::endl;
-        const uint64_t fault_injection_percentage = calculate_fault_injection_percentage(fault);
-        std::cout << "\t\t\t" << "fault_injection_percentage = " << fault_injection_percentage << ", amortized_fault = " << amortized_fault << std::endl;
-        if (random_.random() % (100 - amortized_fault) < fault_injection_percentage) {
+        if (random_number % (100 - amortized_fault) < fault_injection_percentage) {
           std::cout << "\t\t\t" << "injecting general fault" << std::endl;
           return std::make_pair(get_fault_type(fault), get_fault_delay_ms(fault));
         } else {
