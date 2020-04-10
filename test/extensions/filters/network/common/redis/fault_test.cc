@@ -53,6 +53,10 @@ class FaultTest : public testing::Test {
         fault->mutable_delay()->set_seconds(duration.count());
     }
 
+    int numberOfFaults(RedisFaultManager fault_manager) {
+        return fault_manager.fault_map_.size();
+    }
+
     testing::NiceMock<Runtime::MockRandomGenerator> random_;
     Runtime::MockLoader runtime_;
 };
@@ -63,7 +67,7 @@ TEST_F(FaultTest, NoFaults) {
 
     TestScopedRuntime scoped_runtime;
     RedisFaultManager fault_manager = RedisFaultManager(random_, runtime_, *faults);
-    ASSERT_EQ(fault_manager.fault_map_.size(), 0);
+    ASSERT_EQ(numberOfFaults(fault_manager), 0);
 
     absl::optional<std::pair<FaultType, std::chrono::milliseconds>> fault_opt = fault_manager.get_fault_for_command("get");
     ASSERT_FALSE(fault_opt.has_value());
@@ -76,7 +80,7 @@ TEST_F(FaultTest, SingleCommandFaultNotEnabled) {
     
     TestScopedRuntime scoped_runtime;
     RedisFaultManager fault_manager = RedisFaultManager(random_, runtime_, *faults);
-    ASSERT_EQ(fault_manager.fault_map_.size(), 1);
+    ASSERT_EQ(numberOfFaults(fault_manager), 1);
 
     EXPECT_CALL(random_, random()).WillOnce(Return(0));
     EXPECT_CALL(runtime_, snapshot());
@@ -93,7 +97,7 @@ TEST_F(FaultTest, SingleCommandFault) {
     
     TestScopedRuntime scoped_runtime;
     RedisFaultManager fault_manager = RedisFaultManager(random_, runtime_, *faults);
-    ASSERT_EQ(fault_manager.fault_map_.size(), 1);
+    ASSERT_EQ(numberOfFaults(fault_manager), 1);
 
     EXPECT_CALL(random_, random()).WillOnce(Return(1));
     EXPECT_CALL(runtime_, snapshot());
@@ -111,7 +115,7 @@ TEST_F(FaultTest, MultipleFaults) {
     
     TestScopedRuntime scoped_runtime;
     RedisFaultManager fault_manager = RedisFaultManager(random_, runtime_, *faults);
-    ASSERT_EQ(fault_manager.fault_map_.size(), 3);
+    ASSERT_EQ(numberOfFaults(fault_manager), 3);
 
     absl::optional<std::pair<FaultType, std::chrono::milliseconds>> fault_opt;
 
