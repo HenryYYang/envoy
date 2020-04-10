@@ -10,8 +10,8 @@
 
 #include "gtest/gtest.h"
 
-using testing::ContainerEq;
 using testing::InSequence;
+using testing::Return;
 
 namespace Envoy {
 namespace Extensions {
@@ -24,11 +24,23 @@ using RedisProxy = envoy::extensions::filters::network::redis_proxy::v3::RedisPr
 class FaultTest : public testing::Test {
     public:
 
-    void createCommandFault(RedisProxy::RedisFault* fault, std::string command_str, int fault_percentage) {
+    void createCommandFault(RedisProxy::RedisFault* fault, std::string command_str, int fault_percentage, int delay_seconds) {
+        // We don't set fault type as it isn't used in the test
+        
         auto* commands = fault->mutable_commands();
         auto* command = commands->Add();
         command->assign(command_str);
         
+        addFaultPercentage(fault, fault_percentage);
+        addDelay(fault, delay_seconds);
+    }
+
+    void createAllKeyFault(RedisProxy::RedisFault* fault, int fault_percentage, int delay_seconds) {
+        addFaultPercentage(fault, fault_percentage);
+        addDelay(fault, delay_seconds);
+    }
+
+    void addFaultPercentage(RedisProxy::RedisFault* fault, int fault_percentage) {
         envoy::config::core::v3::RuntimeFractionalPercent* fault_enabled = fault->mutable_fault_enabled();
         fault_enabled->set_runtime_key("runtime_key");
         auto* percentage = fault_enabled->mutable_default_value();
@@ -36,32 +48,84 @@ class FaultTest : public testing::Test {
         percentage->set_denominator(envoy::type::v3::FractionalPercent::HUNDRED);
     }
 
+    void addDelay(RedisProxy::RedisFault* fault, int delay_seconds) {
+        std::chrono::seconds duration = std::chrono::seconds(delay_seconds);
+        fault->mutable_delay()->set_seconds(duration.count());
+    }
+
     testing::NiceMock<Runtime::MockRandomGenerator> random_;
     Runtime::MockLoader runtime_;
 };
 
-TEST_F(FaultTest, ConstructFaultMapWithNoFaults) {
+TEST_F(FaultTest, NoFaults) {
     RedisProxy redis_config;
     auto* faults = redis_config.mutable_faults();
 
     TestScopedRuntime scoped_runtime;
     RedisFaultManager fault_manager = RedisFaultManager(random_, runtime_, *faults);
     ASSERT_EQ(fault_manager.fault_map_.size(), 0);
+
+    absl::optional<std::pair<FaultType, std::chrono::milliseconds>> fault_opt = fault_manager.get_fault_for_command("get");
+    ASSERT_FALSE(fault_opt.has_value());
 }
 
-TEST_F(FaultTest, ConstructFaultMapSingleCommandFault) {
+TEST_F(FaultTest, SingleCommandFault) {
     RedisProxy redis_config;
     auto* faults = redis_config.mutable_faults();
-    createCommandFault(faults->Add(), "get", 50);
+    createCommandFault(faults->Add(), "get", 50, 0);
     
     TestScopedRuntime scoped_runtime;
     RedisFaultManager fault_manager = RedisFaultManager(random_, runtime_, *faults);
     ASSERT_EQ(fault_manager.fault_map_.size(), 1);
+
+    EXPECT_CALL(random_, random()).WillOnce(Return(1));
+    EXPECT_CALL(runtime_, snapshot());
+    absl::optional<std::pair<FaultType, std::chrono::milliseconds>> fault_opt = fault_manager.get_fault_for_command("get");
+    ASSERT_TRUE(fault_opt.has_value());
 }
 
-// Single ALL_KEY fault
+TEST_F(FaultTest, MultipleFaults) {
+    // This creates 2 faults, but the map will have 3 entries, as each command points to
+    // command specific faults AND the general fault.
+    RedisProxy redis_config;
+    auto* faults = redis_config.mutable_faults();
+    createCommandFault(faults->Add(), "get", 25, 0);
+    createAllKeyFault(faults->Add(), 25, 2);
+    
+    TestScopedRuntime scoped_runtime;
+    RedisFaultManager fault_manager = RedisFaultManager(random_, runtime_, *faults);
+    ASSERT_EQ(fault_manager.fault_map_.size(), 3);
 
-// Multiple command all_key faults
+    absl::optional<std::pair<FaultType, std::chrono::milliseconds>> fault_opt;
+
+    // Get command - should have a fault 50% of time
+    // For the first call we mock the random percentage to be 1%, which will give us the first fault with 0s delay.
+    EXPECT_CALL(random_, random()).WillOnce(Return(1));
+    EXPECT_CALL(runtime_, snapshot());
+    fault_opt = fault_manager.get_fault_for_command("get");
+    ASSERT_TRUE(fault_opt.has_value());
+    ASSERT_EQ(fault_opt.value().second, std::chrono::milliseconds(0));
+
+    // For the second call we mock the random percentage to be 25%, which will give us the case with no fault.
+    EXPECT_CALL(random_, random()).WillOnce(Return(25));
+    EXPECT_CALL(runtime_, snapshot()).Times(2);
+    fault_opt = fault_manager.get_fault_for_command("get");
+    ASSERT_FALSE(fault_opt.has_value());
+
+    // The same result is expected for 74%.
+    EXPECT_CALL(random_, random()).WillOnce(Return(74));
+    EXPECT_CALL(runtime_, snapshot()).Times(2);
+    fault_opt = fault_manager.get_fault_for_command("get");
+    ASSERT_FALSE(fault_opt.has_value());
+
+    // For the final call we mock the random percentage to be 75%, which will give us the second fault with 2s delay.
+    EXPECT_CALL(random_, random()).WillOnce(Return(75));
+    EXPECT_CALL(runtime_, snapshot()).Times(2);
+    fault_opt = fault_manager.get_fault_for_command("get");
+    ASSERT_TRUE(fault_opt.has_value());
+    ASSERT_EQ(fault_opt.value().second, std::chrono::milliseconds(2000));
+
+}
 
 } // namespace Redis
 } // namespace Common
