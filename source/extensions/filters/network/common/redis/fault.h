@@ -34,12 +34,17 @@ class RedisFaultManager {
 
   absl::optional<std::pair<FaultType, std::chrono::milliseconds>> get_fault_for_command(std::string command);
   
+  // Allow the unit test to have access to private members.
+  friend class FaultTest;
+
   private:
+
   uint64_t calculate_fault_injection_percentage(envoy::extensions::filters::network::redis_proxy::v3::RedisProxy_RedisFault& fault);
   std::chrono::milliseconds get_fault_delay_ms(envoy::extensions::filters::network::redis_proxy::v3::RedisProxy_RedisFault& fault);
   FaultType get_fault_type(envoy::extensions::filters::network::redis_proxy::v3::RedisProxy_RedisFault& fault);
 
-  const std::string ALL_KEY = "ALL_KEYS";
+public: // TODO: Remove once we get friend working
+  const std::string ALL_KEY = "ALL_KEY";
   FaultMapType fault_map_;
   Runtime::RandomGenerator& random_;
   Runtime::Loader& runtime_;
