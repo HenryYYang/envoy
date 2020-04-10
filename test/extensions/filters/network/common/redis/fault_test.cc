@@ -20,32 +20,32 @@ namespace Common {
 namespace Redis {
 
 using RedisProxy = envoy::extensions::filters::network::redis_proxy::v3::RedisProxy;
-
+using FractionalPercent = envoy::type::v3::FractionalPercent;
 class FaultTest : public testing::Test {
     public:
 
-    void createCommandFault(RedisProxy::RedisFault* fault, std::string command_str, int fault_percentage, int delay_seconds) {
+    void createCommandFault(RedisProxy::RedisFault* fault, std::string command_str, int fault_percentage, int delay_seconds, envoy::type::v3::FractionalPercent_DenominatorType denominator) {
         // We don't set fault type as it isn't used in the test
         
         auto* commands = fault->mutable_commands();
         auto* command = commands->Add();
         command->assign(command_str);
         
-        addFaultPercentage(fault, fault_percentage);
+        addFaultPercentage(fault, fault_percentage, denominator);
         addDelay(fault, delay_seconds);
     }
 
-    void createAllKeyFault(RedisProxy::RedisFault* fault, int fault_percentage, int delay_seconds) {
-        addFaultPercentage(fault, fault_percentage);
+    void createAllKeyFault(RedisProxy::RedisFault* fault, int fault_percentage, int delay_seconds, envoy::type::v3::FractionalPercent_DenominatorType denominator) {
+        addFaultPercentage(fault, fault_percentage, denominator);
         addDelay(fault, delay_seconds);
     }
 
-    void addFaultPercentage(RedisProxy::RedisFault* fault, int fault_percentage) {
+    void addFaultPercentage(RedisProxy::RedisFault* fault, int fault_percentage, envoy::type::v3::FractionalPercent_DenominatorType denominator) {
         envoy::config::core::v3::RuntimeFractionalPercent* fault_enabled = fault->mutable_fault_enabled();
         fault_enabled->set_runtime_key("runtime_key");
         auto* percentage = fault_enabled->mutable_default_value();
         percentage->set_numerator(fault_percentage);
-        percentage->set_denominator(envoy::type::v3::FractionalPercent::HUNDRED);
+        percentage->set_denominator(denominator);
     }
 
     void addDelay(RedisProxy::RedisFault* fault, int delay_seconds) {
@@ -72,7 +72,7 @@ TEST_F(FaultTest, NoFaults) {
 TEST_F(FaultTest, SingleCommandFaultNotEnabled) {
     RedisProxy redis_config;
     auto* faults = redis_config.mutable_faults();
-    createCommandFault(faults->Add(), "get", 0, 0);
+    createCommandFault(faults->Add(), "get", 0, 0, FractionalPercent::HUNDRED);
     
     TestScopedRuntime scoped_runtime;
     RedisFaultManager fault_manager = RedisFaultManager(random_, runtime_, *faults);
@@ -85,9 +85,11 @@ TEST_F(FaultTest, SingleCommandFaultNotEnabled) {
 }
 
 TEST_F(FaultTest, SingleCommandFault) {
+    // Inject a single fault. Notably we use a different denominator to test that code path; normally
+    // we use FractionalPercent::HUNDRED.
     RedisProxy redis_config;
     auto* faults = redis_config.mutable_faults();
-    createCommandFault(faults->Add(), "get", 50, 0);
+    createCommandFault(faults->Add(), "get", 5000, 0, FractionalPercent::TEN_THOUSAND);
     
     TestScopedRuntime scoped_runtime;
     RedisFaultManager fault_manager = RedisFaultManager(random_, runtime_, *faults);
@@ -99,15 +101,13 @@ TEST_F(FaultTest, SingleCommandFault) {
     ASSERT_TRUE(fault_opt.has_value());
 }
 
-
-
 TEST_F(FaultTest, MultipleFaults) {
     // This creates 2 faults, but the map will have 3 entries, as each command points to
     // command specific faults AND the general fault.
     RedisProxy redis_config;
     auto* faults = redis_config.mutable_faults();
-    createCommandFault(faults->Add(), "get", 25, 0);
-    createAllKeyFault(faults->Add(), 25, 2);
+    createCommandFault(faults->Add(), "get", 25, 0, FractionalPercent::HUNDRED);
+    createAllKeyFault(faults->Add(), 25, 2, FractionalPercent::HUNDRED);
     
     TestScopedRuntime scoped_runtime;
     RedisFaultManager fault_manager = RedisFaultManager(random_, runtime_, *faults);
