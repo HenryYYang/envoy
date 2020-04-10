@@ -69,6 +69,21 @@ TEST_F(FaultTest, NoFaults) {
     ASSERT_FALSE(fault_opt.has_value());
 }
 
+TEST_F(FaultTest, SingleCommandFaultNotEnabled) {
+    RedisProxy redis_config;
+    auto* faults = redis_config.mutable_faults();
+    createCommandFault(faults->Add(), "get", 0, 0);
+    
+    TestScopedRuntime scoped_runtime;
+    RedisFaultManager fault_manager = RedisFaultManager(random_, runtime_, *faults);
+    ASSERT_EQ(fault_manager.fault_map_.size(), 1);
+
+    EXPECT_CALL(random_, random()).WillOnce(Return(0));
+    EXPECT_CALL(runtime_, snapshot());
+    absl::optional<std::pair<FaultType, std::chrono::milliseconds>> fault_opt = fault_manager.get_fault_for_command("get");
+    ASSERT_FALSE(fault_opt.has_value());
+}
+
 TEST_F(FaultTest, SingleCommandFault) {
     RedisProxy redis_config;
     auto* faults = redis_config.mutable_faults();
@@ -83,6 +98,8 @@ TEST_F(FaultTest, SingleCommandFault) {
     absl::optional<std::pair<FaultType, std::chrono::milliseconds>> fault_opt = fault_manager.get_fault_for_command("get");
     ASSERT_TRUE(fault_opt.has_value());
 }
+
+
 
 TEST_F(FaultTest, MultipleFaults) {
     // This creates 2 faults, but the map will have 3 entries, as each command points to
