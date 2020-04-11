@@ -12,8 +12,11 @@
 #include "test/extensions/filters/network/common/redis/mocks.h"
 #include "test/extensions/filters/network/redis_proxy/mocks.h"
 #include "test/mocks/common.h"
+#include "test/mocks/event/mocks.h"
 #include "test/mocks/stats/mocks.h"
 #include "test/test_common/simulated_time_system.h"
+#include "test/test_common/test_runtime.h"
+#include "test/mocks/runtime/mocks.h"
 
 using testing::_;
 using testing::DoAll;
@@ -57,9 +60,12 @@ public:
   std::shared_ptr<NiceMock<MockRoute>> route_{
       new NiceMock<MockRoute>(ConnPool::InstanceSharedPtr{conn_pool_})};
   NiceMock<Stats::MockIsolatedStatsStore> store_;
+  NiceMock<Event::MockDispatcher> dispatcher_;
+  testing::NiceMock<Runtime::MockRandomGenerator> random_;
+  Runtime::MockLoader runtime_;
   Event::SimulatedTimeSystem time_system_;
   InstanceImpl splitter_{std::make_unique<NiceMock<MockRouter>>(route_), store_, "redis.foo.",
-                         time_system_, latency_in_micros_};
+                         time_system_, latency_in_micros_, dispatcher_, MockFaultManager(random_, runtime_)};
   MockSplitCallbacks callbacks_;
   SplitRequestPtr handle_;
 };

@@ -30,7 +30,11 @@ class RedisFaultManager {
   typedef std::multimap<std::string, envoy::extensions::filters::network::redis_proxy::v3::RedisProxy_RedisFault> FaultMapType;
 
   public:
-  RedisFaultManager(Runtime::RandomGenerator& random, Runtime::Loader& runtime, const ::google::protobuf::RepeatedPtrField< ::envoy::extensions::filters::network::redis_proxy::v3::RedisProxy_RedisFault> faults);
+  RedisFaultManager(Runtime::RandomGenerator& random, 
+                    Runtime::Loader& runtime) : random_(random), runtime_(runtime) {}; // For testing
+  RedisFaultManager(Runtime::RandomGenerator& random, 
+                    Runtime::Loader& runtime, 
+                    const ::google::protobuf::RepeatedPtrField< ::envoy::extensions::filters::network::redis_proxy::v3::RedisProxy_RedisFault> faults);
 
   absl::optional<std::pair<FaultType, std::chrono::milliseconds>> get_fault_for_command(std::string command);
   

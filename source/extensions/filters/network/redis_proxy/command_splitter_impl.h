@@ -342,7 +342,8 @@ struct InstanceStats {
 class InstanceImpl : public Instance, Logger::Loggable<Logger::Id::redis> {
 public:
   InstanceImpl(RouterPtr&& router, Stats::Scope& scope, const std::string& stat_prefix,
-               TimeSource& time_source, bool latency_in_micros, Event::Dispatcher& dispatcher, Common::Redis::RedisFaultManager fault_manager);
+               TimeSource& time_source, bool latency_in_micros, Event::Dispatcher& dispatcher,
+               Common::Redis::RedisFaultManager fault_manager);
 
   // RedisProxy::CommandSplitter::Instance
   SplitRequestPtr makeRequest(Common::Redis::RespValuePtr&& request,

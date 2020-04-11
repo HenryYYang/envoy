@@ -26,6 +26,9 @@ MockMirrorPolicy::MockMirrorPolicy(ConnPool::InstanceSharedPtr conn_pool)
   ON_CALL(*this, shouldMirror(_)).WillByDefault(Return(true));
 }
 
+MockFaultManager::MockFaultManager(Runtime::RandomGenerator& random, Runtime::Loader& runtime) : RedisFaultManager(random, runtime) {}
+MockFaultManager::~MockFaultManager() = default;
+
 namespace ConnPool {
 
 MockPoolCallbacks::MockPoolCallbacks() = default;
