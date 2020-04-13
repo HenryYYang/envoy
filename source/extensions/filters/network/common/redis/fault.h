@@ -1,11 +1,7 @@
 #pragma once
 
 #include <string>
-#include <map>
-#include <list>
-
 #include "envoy/api/api.h"
-#include "envoy/upstream/upstream.h"
 
 namespace Envoy {
 namespace Extensions {

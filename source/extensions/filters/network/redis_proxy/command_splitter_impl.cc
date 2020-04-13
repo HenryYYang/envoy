@@ -525,7 +525,8 @@ SplitRequestPtr InstanceImpl::makeRequest(Common::Redis::RespValuePtr&& request,
   }
 
   // Fault Injection Check
-  absl::optional<std::pair<Common::Redis::FaultType, std::chrono::milliseconds>> fault = fault_manager_.get_fault_for_command(to_lower_string);
+  absl::optional<std::pair<Common::Redis::FaultType, std::chrono::milliseconds>> fault = fault_manager_.getFaultForCommand(to_lower_string);
+  std::cout << "Fault active: " << fault.has_value() << std::endl;
 
   // Start request
   ENVOY_LOG(debug, "redis: splitting '{}'", request->toString());
