@@ -100,12 +100,18 @@ envoy_cc_library(
     ],
 )
 
+envoy_cc_library(
+    name = "fault_interface",
+    hdrs = ["fault.h"],
+    deps = [],
+)
 
 envoy_cc_library(
     name = "fault_lib",
-    srcs = ["fault.cc"],
-    hdrs = ["fault.h"],
+    srcs = ["fault_impl.cc"],
+    hdrs = ["fault_impl.h"],
     deps = [
+        ":fault_interface",
         ":codec_lib",
         "//include/envoy/upstream:upstream_interface",
         "@envoy_api//envoy/config/core/v3:pkg_cc_proto",

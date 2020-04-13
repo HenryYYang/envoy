@@ -1,4 +1,4 @@
-#include "extensions/filters/network/common/redis/fault.h"
+#include "extensions/filters/network/common/redis/fault_impl.h"
 
 namespace Envoy {
 namespace Extensions {
@@ -6,7 +6,7 @@ namespace NetworkFilters {
 namespace Common {
 namespace Redis {
 
-  RedisFaultManager::RedisFaultManager(Runtime::RandomGenerator& random, Runtime::Loader& runtime, const ::google::protobuf::RepeatedPtrField< ::envoy::extensions::filters::network::redis_proxy::v3::RedisProxy_RedisFault> faults) : random_(random), runtime_(runtime) {
+  RedisFaultManagerImpl::RedisFaultManagerImpl(Runtime::RandomGenerator& random, Runtime::Loader& runtime, const ::google::protobuf::RepeatedPtrField< ::envoy::extensions::filters::network::redis_proxy::v3::RedisProxy_RedisFault> faults) : random_(random), runtime_(runtime) {
     // Group faults by command
     for (auto fault : faults) {
       if (fault.commands_size() > 0) {
@@ -33,7 +33,7 @@ namespace Redis {
     }
   }
 
-  absl::optional<std::pair<FaultType, std::chrono::milliseconds>> RedisFaultManager::get_fault_for_command(std::string command) {
+  absl::optional<std::pair<FaultType, std::chrono::milliseconds>> RedisFaultManagerImpl::getFaultForCommand(std::string command) {
     // Fault checking algorithm:
     //
     // For example, if we have an ERROR fault at 5% for all commands, and a DELAY fault at 10% for GET, if
@@ -51,9 +51,9 @@ namespace Redis {
       std::pair<FaultMapType::iterator, FaultMapType::iterator> range = fault_map_.equal_range(command);
       for (FaultMapType::iterator it = range.first; it != range.second; ++it) {
         envoy::extensions::filters::network::redis_proxy::v3::RedisProxy_RedisFault fault = it->second;
-        const uint64_t fault_injection_percentage = calculate_fault_injection_percentage(fault);
+        const uint64_t fault_injection_percentage = calculateFaultInjectionPercentage(fault);
         if (random_number % (100 - amortized_fault) < fault_injection_percentage) {
-          return std::make_pair(get_fault_type(fault), get_fault_delay_ms(fault));
+          return std::make_pair(getFaultType(fault), getFaultDelayMs(fault));
         } else {
           amortized_fault += fault_injection_percentage;
         }
@@ -64,7 +64,11 @@ namespace Redis {
     return absl::nullopt;
   }
 
-  uint64_t RedisFaultManager::calculate_fault_injection_percentage(envoy::extensions::filters::network::redis_proxy::v3::RedisProxy_RedisFault& fault) {
+  int RedisFaultManagerImpl::numberOfFaults() {
+    return fault_map_.size();
+  }
+
+  uint64_t RedisFaultManagerImpl::calculateFaultInjectionPercentage(envoy::extensions::filters::network::redis_proxy::v3::RedisProxy_RedisFault& fault) {
       if (fault.has_fault_enabled()) {
         if (fault.fault_enabled().has_default_value()) {
           envoy::type::v3::FractionalPercent default_value = fault.fault_enabled().default_value();
@@ -85,11 +89,11 @@ namespace Redis {
       }
   }
 
-  std::chrono::milliseconds RedisFaultManager::get_fault_delay_ms(envoy::extensions::filters::network::redis_proxy::v3::RedisProxy_RedisFault& fault) {
+  std::chrono::milliseconds RedisFaultManagerImpl::getFaultDelayMs(envoy::extensions::filters::network::redis_proxy::v3::RedisProxy_RedisFault& fault) {
     return std::chrono::milliseconds(PROTOBUF_GET_MS_OR_DEFAULT(fault, delay, 0));
   }
 
-  FaultType RedisFaultManager::get_fault_type(envoy::extensions::filters::network::redis_proxy::v3::RedisProxy_RedisFault& fault) {
+  FaultType RedisFaultManagerImpl::getFaultType(envoy::extensions::filters::network::redis_proxy::v3::RedisProxy_RedisFault& fault) {
     switch (fault.fault_type()) {
     case envoy::extensions::filters::network::redis_proxy::v3::RedisProxy::RedisFault::DELAY:
       return FaultType::Delay;
