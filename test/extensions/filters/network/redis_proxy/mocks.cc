@@ -27,6 +27,7 @@ MockMirrorPolicy::MockMirrorPolicy(ConnPool::InstanceSharedPtr conn_pool)
 }
 
 MockFaultManager::MockFaultManager(Runtime::RandomGenerator& random, Runtime::Loader& runtime) : RedisFaultManager(random, runtime) {}
+MockFaultManager::MockFaultManager(const MockFaultManager &other) : MockFaultManager(other.random_, other.runtime_) {}
 MockFaultManager::~MockFaultManager() = default;
 
 namespace ConnPool {

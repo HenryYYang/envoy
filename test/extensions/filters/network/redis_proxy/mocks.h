@@ -57,6 +57,7 @@ public:
   using FaultTypeAndDelay = std::pair<bool, int>;
 
   MockFaultManager(Runtime::RandomGenerator& random, Runtime::Loader& runtime);
+  MockFaultManager(const MockFaultManager &other);
   ~MockFaultManager();
 
   MOCK_METHOD((absl::optional<std::pair<Common::Redis::FaultType, std::chrono::milliseconds>>), get_fault_for_command, (std::string));

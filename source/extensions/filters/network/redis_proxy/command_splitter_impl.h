@@ -348,6 +348,7 @@ public:
   // RedisProxy::CommandSplitter::Instance
   SplitRequestPtr makeRequest(Common::Redis::RespValuePtr&& request,
                               SplitCallbacks& callbacks) override;
+
 private:
 
   void addHandler(Stats::Scope& scope, const std::string& stat_prefix, const std::string& name,
@@ -365,7 +366,7 @@ private:
   InstanceStats stats_;
   TimeSource& time_source_;
   Event::Dispatcher& dispatcher_;
-  Common::Redis::RedisFaultManager fault_manager_;
+  Common::Redis::RedisFaultManager fault_manager_; // TODO: Should this just live on the config?
 
   const std::string ERROR_FAULT = "error_fault";
 };

@@ -47,9 +47,9 @@ class RedisFaultManager {
   std::chrono::milliseconds get_fault_delay_ms(envoy::extensions::filters::network::redis_proxy::v3::RedisProxy_RedisFault& fault);
   FaultType get_fault_type(envoy::extensions::filters::network::redis_proxy::v3::RedisProxy_RedisFault& fault);
 
-public: // TODO: Remove once we get friend working
   const std::string ALL_KEY = "ALL_KEY";
   FaultMapType fault_map_;
+  protected:
   Runtime::RandomGenerator& random_;
   Runtime::Loader& runtime_;
 };
