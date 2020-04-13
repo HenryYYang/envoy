@@ -26,8 +26,11 @@ MockMirrorPolicy::MockMirrorPolicy(ConnPool::InstanceSharedPtr conn_pool)
   ON_CALL(*this, shouldMirror(_)).WillByDefault(Return(true));
 }
 
-MockFaultManager::MockFaultManager(Runtime::RandomGenerator& random, Runtime::Loader& runtime) : RedisFaultManager(random, runtime) {}
-MockFaultManager::MockFaultManager(const MockFaultManager &other) : MockFaultManager(other.random_, other.runtime_) {}
+MockFaultManager::MockFaultManager() {
+  ON_CALL(*this, getFaultForCommand(_)).WillByDefault(Return(absl::nullopt));
+  ON_CALL(*this, numberOfFaults()).WillByDefault(Return(0));
+}
+MockFaultManager::MockFaultManager(const MockFaultManager&) : MockFaultManager() {}
 MockFaultManager::~MockFaultManager() = default;
 
 namespace ConnPool {

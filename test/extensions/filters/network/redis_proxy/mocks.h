@@ -54,13 +54,12 @@ public:
 
 class MockFaultManager : public Common::Redis::RedisFaultManager {
 public:
-  using FaultTypeAndDelay = std::pair<bool, int>;
-
-  MockFaultManager(Runtime::RandomGenerator& random, Runtime::Loader& runtime);
+  MockFaultManager();
   MockFaultManager(const MockFaultManager &other);
   ~MockFaultManager();
 
-  MOCK_METHOD((absl::optional<std::pair<Common::Redis::FaultType, std::chrono::milliseconds>>), get_fault_for_command, (std::string));
+  MOCK_METHOD((absl::optional<std::pair<Common::Redis::FaultType, std::chrono::milliseconds>>), getFaultForCommand, (std::string));
+  MOCK_METHOD(int, numberOfFaults, ());
 };
 
 namespace ConnPool {
