@@ -15,7 +15,7 @@
 #include "test/mocks/event/mocks.h"
 #include "test/mocks/stats/mocks.h"
 #include "test/test_common/simulated_time_system.h"
-#include "test/test_common/test_runtime.h"
+
 #include "test/mocks/runtime/mocks.h"
 
 using testing::_;
@@ -35,7 +35,7 @@ namespace CommandSplitter {
 class RedisCommandSplitterImplTest : public testing::Test {
 public:
   RedisCommandSplitterImplTest() : RedisCommandSplitterImplTest(false) {}
-  RedisCommandSplitterImplTest(bool latency_in_macro) : latency_in_micros_(latency_in_macro), fault_manager_(MockFaultManager(random_, runtime_)) {}
+  RedisCommandSplitterImplTest(bool latency_in_macro) : latency_in_micros_(latency_in_macro), fault_manager_(MockFaultManager()) {}
   void makeBulkStringArray(Common::Redis::RespValue& value,
                            const std::vector<std::string>& strings) {
     std::vector<Common::Redis::RespValue> values(strings.size());
@@ -61,8 +61,6 @@ public:
       new NiceMock<MockRoute>(ConnPool::InstanceSharedPtr{conn_pool_})};
   NiceMock<Stats::MockIsolatedStatsStore> store_;
   NiceMock<Event::MockDispatcher> dispatcher_;
-  testing::NiceMock<Runtime::MockRandomGenerator> random_;
-  Runtime::MockLoader runtime_;
   MockFaultManager fault_manager_;
   Event::SimulatedTimeSystem time_system_;
   InstanceImpl splitter_{std::make_unique<NiceMock<MockRouter>>(route_), store_, "redis.foo.",
@@ -213,30 +211,6 @@ TEST_P(RedisSingleServerRequestTest, Success) {
   InSequence s;
 
   std::string lower_command = absl::AsciiStrToLower(GetParam());
-
-  Common::Redis::RespValuePtr request{new Common::Redis::RespValue()};
-  makeBulkStringArray(*request, {GetParam(), "hello"});
-  makeRequest("hello", std::move(request));
-  EXPECT_NE(nullptr, handle_);
-
-  time_system_.setMonotonicTime(std::chrono::milliseconds(10));
-  EXPECT_CALL(store_, deliverHistogramToSinks(
-                          Property(&Stats::Metric::name,
-                                   fmt::format("redis.foo.command.{}.latency", lower_command)),
-                          10));
-  respond();
-
-  EXPECT_EQ(1UL, store_.counter(fmt::format("redis.foo.command.{}.total", lower_command)).value());
-  EXPECT_EQ(1UL,
-            store_.counter(fmt::format("redis.foo.command.{}.success", lower_command)).value());
-};
-
-TEST_P(RedisSingleServerRequestTest, ErrorFault) {
-  InSequence s;
-
-  std::string lower_command = absl::AsciiStrToLower(GetParam());
-
-  // Mock fault manager response to say error fault result
 
   Common::Redis::RespValuePtr request{new Common::Redis::RespValue()};
   makeBulkStringArray(*request, {GetParam(), "hello"});
