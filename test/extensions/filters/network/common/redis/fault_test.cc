@@ -118,7 +118,9 @@ TEST_F(FaultTest, SingleCommandFault) {
 
   EXPECT_CALL(random_, random()).WillOnce(Return(1));
   EXPECT_CALL(runtime_, snapshot()).WillOnce(ReturnRef(snapshot_));
-  EXPECT_CALL(snapshot_, getInteger(_, testing::Matcher<const envoy::type::v3::FractionalPercent&>(_))).WillOnce(Return(10));
+  EXPECT_CALL(snapshot_,
+              getInteger(_, testing::Matcher<const envoy::type::v3::FractionalPercent&>(_)))
+      .WillOnce(Return(10));
 
   const Fault* fault_ptr = fault_manager.getFaultForCommand("ttl");
   ASSERT_TRUE(fault_ptr != nullptr);
@@ -158,7 +160,9 @@ TEST_F(FaultTest, MultipleFaults) {
   // with 0s delay.
   EXPECT_CALL(random_, random()).WillOnce(Return(1));
   EXPECT_CALL(runtime_, snapshot()).WillOnce(ReturnRef(snapshot_));
-  EXPECT_CALL(snapshot_, getInteger(_, testing::Matcher<const envoy::type::v3::FractionalPercent&>(_))).WillOnce(Return(10));
+  EXPECT_CALL(snapshot_,
+              getInteger(_, testing::Matcher<const envoy::type::v3::FractionalPercent&>(_)))
+      .WillOnce(Return(10));
   fault_ptr = fault_manager.getFaultForCommand("get");
   ASSERT_TRUE(fault_ptr != nullptr);
   ASSERT_EQ(fault_ptr->delayMs(), std::chrono::milliseconds(0));
@@ -166,7 +170,11 @@ TEST_F(FaultTest, MultipleFaults) {
   // Another Get; we mock the random percentage to be 25%, giving us the ALL_KEY fault
   EXPECT_CALL(random_, random()).WillOnce(Return(25));
   EXPECT_CALL(runtime_, snapshot()).Times(2).WillRepeatedly(ReturnRef(snapshot_));
-  EXPECT_CALL(snapshot_, getInteger(_, testing::Matcher<const envoy::type::v3::FractionalPercent&>(_))).Times(2).WillOnce(Return(10)).WillOnce(Return(50));
+  EXPECT_CALL(snapshot_,
+              getInteger(_, testing::Matcher<const envoy::type::v3::FractionalPercent&>(_)))
+      .Times(2)
+      .WillOnce(Return(10))
+      .WillOnce(Return(50));
   fault_ptr = fault_manager.getFaultForCommand("get");
   ASSERT_TRUE(fault_ptr != nullptr);
   ASSERT_EQ(fault_ptr->delayMs(), std::chrono::milliseconds(2000));
@@ -180,7 +188,9 @@ TEST_F(FaultTest, MultipleFaults) {
   // Any other command; we mock the random percentage to be 1%, giving us the ALL_KEY fault
   EXPECT_CALL(random_, random()).WillOnce(Return(1));
   EXPECT_CALL(runtime_, snapshot()).WillOnce(ReturnRef(snapshot_));
-  EXPECT_CALL(snapshot_, getInteger(_, testing::Matcher<const envoy::type::v3::FractionalPercent&>(_))).WillOnce(Return(10));
+  EXPECT_CALL(snapshot_,
+              getInteger(_, testing::Matcher<const envoy::type::v3::FractionalPercent&>(_)))
+      .WillOnce(Return(10));
 
   fault_ptr = fault_manager.getFaultForCommand("ttl");
   ASSERT_TRUE(fault_ptr != nullptr);

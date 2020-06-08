@@ -284,6 +284,15 @@ const std::string CONFIG_WITH_FAULT_INJECTION = CONFIG + R"EOF(
                 denominator: HUNDRED
             commands:
             - GET
+          - fault_type: DELAY
+            fault_enabled:
+              default_value:
+                numerator: 20
+                denominator: HUNDRED
+              runtime_key: "bogus_key"
+            delay: 2s
+            commands:
+            - SET
 )EOF";
 
 // This function encodes commands as an array of bulkstrings as transmitted by Redis clients to
@@ -661,18 +670,6 @@ TEST_P(RedisProxyWithCommandStatsIntegrationTest, MGETRequestAndResponse) {
   // CleanupRedisProxyWithCommandStatsIntegrationTest
   EXPECT_TRUE(fake_upstream_connection->close());
   redis_client->close();
-}
-
-TEST_P(RedisProxyWithFaultInjectionIntegrationTest, ErrorFault) {
-  std::stringstream fault_response;
-  fault_response << "-" << Extensions::NetworkFilters::Common::Redis::FaultMessages::get().Error << "\r\n";
-  initialize();
-  simpleProxyResponse(makeBulkStringArray({"get", "foo"}), fault_response.str());
-}
-
-TEST_P(RedisProxyWithFaultInjectionIntegrationTest, DelayFault) {
-  // TODO: DELAY FAULT
-  // - Add delay fault to same config as error command, make it operate on set only
 }
 
 // This test sends an invalid Redis command from a fake
@@ -1092,6 +1089,24 @@ TEST_P(RedisProxyWithMirrorsIntegrationTest, EnabledViaRuntimeFraction) {
   EXPECT_TRUE(fake_upstream_connection[0]->close());
   EXPECT_TRUE(fake_upstream_connection[1]->close());
   redis_client->close();
+}
+
+// This test injects an error fault. The server responds with an error.
+TEST_P(RedisProxyWithFaultInjectionIntegrationTest, ErrorFault) {
+  // TODO: Figure out why there is a memory leak related to ErrorFaultRequest::create
+  std::stringstream fault_response;
+  fault_response << "-" << Extensions::NetworkFilters::Common::Redis::FaultMessages::get().Error
+                 << "\r\n";
+  initialize();
+  simpleProxyResponse(makeBulkStringArray({"get", "foo"}), fault_response.str());
+}
+
+// This test injects a delay fault. The response from the server is unaffected.
+TEST_P(RedisProxyWithFaultInjectionIntegrationTest, DelayFault) {
+  const std::string& set_request = makeBulkStringArray({"set", "write_only:toto", "bar"});
+  const std::string& set_response = ":1\r\n";
+  initialize();
+  simpleRequestAndResponse(set_request, set_response);
 }
 
 } // namespace

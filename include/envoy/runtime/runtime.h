@@ -227,7 +227,8 @@ public:
    *        does not exist or it is not a fractional percent.
    * @return uint64_t the runtime value or the default value.
    */
-  virtual uint64_t getInteger(absl::string_view key, const envoy::type::v3::FractionalPercent& default_value) const PURE;
+  virtual uint64_t getInteger(absl::string_view key,
+                              const envoy::type::v3::FractionalPercent& default_value) const PURE;
 
   /**
    * Fetch an integer runtime key. Runtime keys larger than ~2^53 may not be accurately converted

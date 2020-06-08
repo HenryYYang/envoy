@@ -92,9 +92,7 @@ void SingleServerRequest::onResponse(Common::Redis::RespValuePtr&& response) {
   callbacks_.onResponse(std::move(response));
 }
 
-void SingleServerRequest::onFailure() {
-  onFailure(Response::get().UpstreamFailure);
-}
+void SingleServerRequest::onFailure() { onFailure(Response::get().UpstreamFailure); }
 
 void SingleServerRequest::onFailure(std::string error_msg) {
   handle_ = nullptr;
@@ -122,7 +120,8 @@ std::unique_ptr<DelayFaultRequest> DelayFaultRequest::create(SplitCallbacks& cal
                                                              TimeSource& time_source,
                                                              Event::Dispatcher& dispatcher,
                                                              std::chrono::milliseconds delay) {
-  return std::make_unique<DelayFaultRequest>(callbacks, command_stats, time_source, dispatcher, delay);
+  return std::make_unique<DelayFaultRequest>(callbacks, command_stats, time_source, dispatcher,
+                                             delay);
 }
 
 void DelayFaultRequest::onResponse(Common::Redis::RespValuePtr&& response) {

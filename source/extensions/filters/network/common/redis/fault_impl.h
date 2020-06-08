@@ -47,11 +47,12 @@ public:
   const Fault* getFaultForCommand(std::string command) const override;
 
   static FaultSharedPtr makeFaultForTest(Common::Redis::FaultType fault_type,
-                                  std::chrono::milliseconds delay_ms) {
+                                         std::chrono::milliseconds delay_ms) {
     envoy::type::v3::FractionalPercent default_value;
     default_value.set_numerator(100);
     default_value.set_denominator(envoy::type::v3::FractionalPercent::HUNDRED);
-    FaultImpl fault = FaultImpl(fault_type, delay_ms, std::vector<std::string>(), default_value, "foo");
+    FaultImpl fault =
+        FaultImpl(fault_type, delay_ms, std::vector<std::string>(), default_value, "foo");
     return std::make_shared<FaultImpl>(fault);
   }
 
@@ -64,7 +65,8 @@ private:
     FaultImpl(
         envoy::extensions::filters::network::redis_proxy::v3::RedisProxy_RedisFault base_fault);
     FaultImpl(FaultType fault_type, std::chrono::milliseconds delay_ms,
-              const std::vector<std::string> commands, envoy::type::v3::FractionalPercent default_value,
+              const std::vector<std::string> commands,
+              envoy::type::v3::FractionalPercent default_value,
               absl::optional<std::string> runtime_key)
         : fault_type_(fault_type), delay_ms_(delay_ms), commands_(commands),
           default_value_(default_value), runtime_key_(runtime_key) {} // For testing only
